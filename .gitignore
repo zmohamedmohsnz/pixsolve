@@ -1,0 +1,32 @@
+# dependencies (cause big size)
+node_modules/
+
+# env variables (cause sensitive)
+.env
+
+# a file created by macOS (cause not relevant)
+.DS_Store
+
+# a folder contains personal settings for vscode (cause not important)
+.vscode/
+
+# compiled code (cause can generate from src code, so unnecessary)
+dist/
+
+# coverage reports from testing tools (cause can generate from src code, so unnecessary)
+coverage/
+
+# runtime log files (cause they are runtime data, not source code)
+logs/
+*.log
+
+# user-uploads files (cause they are runtime data, not source code)
+uploads/
+
+
+
+
+
+
+
+

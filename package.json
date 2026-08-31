@@ -1,0 +1,18 @@
+{
+  "name": "pixsolve",
+  "version": "1.0.0",
+  "description": "Backend API for PixSolve",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"No tests yet\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
