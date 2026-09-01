@@ -14,5 +14,9 @@
   "type": "module",
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "helmet": "^8.3.0"
   }
 }
