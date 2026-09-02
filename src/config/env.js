@@ -17,6 +17,10 @@ const envSchema = z.object({
   DB_URI: z.string()
     .trim()
     .min(1, "DB_URI is required"),
+
+  LOG_LEVEL: z
+    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
+    .optional(),
 });
 
 // ─── Validate Env ───────────────────────────────────────────────────────────────
@@ -37,6 +41,7 @@ const config = Object.freeze({
   nodeEnv: result.data.NODE_ENV,
   port: result.data.PORT,
   dbUri: result.data.DB_URI,
+  logLevel: result.data.LOG_LEVEL ?? (result.data.NODE_ENV === 'production' ? 'info' : 'debug'),
 });
 
 export default config;
