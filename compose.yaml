@@ -1,0 +1,34 @@
+services:
+  mongodb:
+    image: mongo:8.0
+    ports:
+      # HOST_IP:HOST_PORT:CONTAINER_PORT
+      - "127.0.0.1:27017:27017"
+    volumes:
+      # VOLUME_NAME:PATH_INSIDE_CONTAINER
+      - mongodb-data:/data/db
+volumes:
+  mongodb-data:
+
+# to run this docker compose:
+# `docker compose up -d mongodb`
+
+# this command tells docker compose:
+# 1. read `compose.yaml`
+# 2. create the named volume if doesn't exist.
+# 3. download `mongo:8.0` if needed.
+# 4. create and start `mongodb` container.
+# 5. run it in the background because of `-d`.
+
+# check MongoDB accepts connection:
+# `docker compose exec mongodb mongosh --quiet --eval "db.runCommand({ ping: 1 })"`
+
+# stop the service but keep container and data
+# `docker compose stop mongodb`
+
+# start the stopped service again
+# `docker compose start mongodb`
+
+# normal development routine:
+# `docker compose up -d mongodb`
+# `npm run dev`
