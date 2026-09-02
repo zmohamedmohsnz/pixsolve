@@ -1,10 +1,10 @@
 // ─── Import Modules ─────────────────────────────────────────────────────────────
 
 import app from './app.js';
+import config from './config/env.js';
 
 // ─── Start a Server ─────────────────────────────────────────────────────────────
 
-const port = 3000;
-const server = app.listen(port, () => {
-  console.log(`App running on port ${port}...`);
+const server = app.listen(config.port, () => {
+  console.log(`App running on port ${config.port}...`);
 });
