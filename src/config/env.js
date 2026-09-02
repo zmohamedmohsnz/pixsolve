@@ -5,6 +5,14 @@ import { z } from 'zod';
 // ─── Define the Schema ──────────────────────────────────────────────────────────
 
 const envSchema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('production'),
+
+  PORT: z.coerce.number()
+    .int('PORT must be an integer')
+    .min(1, 'PORT must be at least 1')
+    .max(65535, 'PORT must not exceed 65535'),
 });
 
 // ─── Validate Env ───────────────────────────────────────────────────────────────
@@ -22,6 +30,8 @@ if (!result.success) {
 }
 
 const config = Object.freeze({
+  nodeEnv: result.data.NODE_ENV,
+  port: result.data.PORT,
 });
 
 export default config;
