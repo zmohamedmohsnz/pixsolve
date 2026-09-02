@@ -13,6 +13,10 @@ const envSchema = z.object({
     .int('PORT must be an integer')
     .min(1, 'PORT must be at least 1')
     .max(65535, 'PORT must not exceed 65535'),
+
+  DB_URI: z.string()
+    .trim()
+    .min(1, "DB_URI is required"),
 });
 
 // ─── Validate Env ───────────────────────────────────────────────────────────────
@@ -32,6 +36,7 @@ if (!result.success) {
 const config = Object.freeze({
   nodeEnv: result.data.NODE_ENV,
   port: result.data.PORT,
+  dbUri: result.data.DB_URI,
 });
 
 export default config;
