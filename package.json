@@ -16,7 +16,9 @@
     "nodemon": "^3.1.14"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "helmet": "^8.3.0"
+    "helmet": "^8.3.0",
+    "zod": "^4.5.4"
   }
 }
