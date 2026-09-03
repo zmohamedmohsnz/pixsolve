@@ -3,6 +3,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import errorHandler from './middleware/errorHandler.js';
+import AppError from './errors/AppError.js';
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
 
@@ -20,6 +21,19 @@ app.use(express.json({ limit: '10kb' }));
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
+});
+
+// ─── Not Found Route Handler Middleware ─────────────────────────────────────────
+
+// when execution reaches this line, this means
+// the request searches about a route doesn't exist.
+app.use((req, _res, next) => {
+  return next(
+    new AppError(
+      `Cannot find ${req.method} ${req.path}`,
+      404,
+      { code: 'ROUTE_NOT_FOUND'})
+    );
 });
 
 // ─── Error Handler Middleware ───────────────────────────────────────────────────
