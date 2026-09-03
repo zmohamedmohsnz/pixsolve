@@ -2,6 +2,7 @@
 
 import express from 'express';
 import helmet from 'helmet';
+import errorHandler from './middleware/errorHandler.js';
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
 
@@ -20,5 +21,9 @@ app.use(express.json({ limit: '10kb' }));
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+// ─── Error Handler Middleware ───────────────────────────────────────────────────
+
+app.use(errorHandler);
 
 export default app;
