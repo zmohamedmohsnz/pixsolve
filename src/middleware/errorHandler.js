@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import AppError from "../errors/AppError.js";
-import logger from '../config/logger.js';
 
 // cast errors happen when a value can't be
 // converted to the type required by the schema.
@@ -83,15 +82,21 @@ const errorHandler = (incomingError, _req, res, next) => {
   // send another response which is not allowed while the default
   // error handler can handle this case by closing the connection.
   if (res.headersSent) {
+    res.err = incomingError;
     return next(incomingError);
   }
 
   const error = translateError(incomingError);
 
+  // logs unknown errors and expected server-side failures.
+  // pino-http checks `res.err` automatically for
+  // an error during the automatic request log.
+  if (!error || error.statusCode >= 500) {
+    res.err = incomingError;
+  }
+
   // when error is `null`, means error is not instance of `AppError`
   if (!error) {
-    logger.error({ err: incomingError }, 'Unexpected application error');
-
     return res.status(500).json({
       status: 'error',
       code: 'INTERNAL_SERVER_ERROR',
