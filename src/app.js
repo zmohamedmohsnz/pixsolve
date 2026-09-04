@@ -4,12 +4,16 @@ import express from 'express';
 import helmet from 'helmet';
 import errorHandler from './middleware/errorHandler.js';
 import AppError from './errors/AppError.js';
+import requestLogger from './middleware/request-logger.js';
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
 
 const app = express();
 
 // ─── GLOBAL MIDDLEWARE ──────────────────────────────────────────────────────────
+
+// capture every request and its response
+app.use(requestLogger);
 
 // returns some response headers that mitigate browser-based attacks.
 app.use(helmet());
