@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import multer from 'multer';
 import AppError from "../errors/AppError.js";
 
 // cast errors happen when a value can't be
@@ -47,6 +48,19 @@ const translateVersionError = (error) => {
   });
 };
 
+// 'LIMIT_UNEXPECTED_FILE' error of multer happen when 
+// a second file or a file under another field name is sent.
+const translateMulterLimitUnexpectedFileError = (error) => {
+  return new AppError(
+    `Only one file is allowed, using the "image" field.`,
+    400,
+    {
+      code: 'LIMIT_UNEXPECTED_FILE',
+      cause: error
+    }
+  );
+};
+
 const translateError = (error) => {
   // this is already translated
   if (error instanceof AppError) return error;
@@ -73,6 +87,11 @@ const translateError = (error) => {
   if (error instanceof mongoose.Error.VersionError) return translateVersionError(error);
   if (error?.name === 'MongoServerError' && error.code === 11000) return translateDuplicateKeyError(error);
 
+  // multer errors
+  if (error instanceof multer.MulterError && error.code === 'LIMIT_UNEXPECTED_FILE') {
+    return translateMulterLimitUnexpectedFileError(error);
+  }
+    
   return null;
 };
 
