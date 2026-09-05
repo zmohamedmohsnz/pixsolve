@@ -61,6 +61,15 @@ const translateMulterLimitUnexpectedFileError = (error) => {
   );
 };
 
+// 'LIMIT_FILE_SIZE' error of multer happen when
+// the sent file exceed the configured size.
+const translateMulterFileSizeError = (error) => {
+  return new AppError('Image must not be larger than 5 MB.', 413, {
+    code: 'IMAGE_TOO_LARGE',
+    cause: error
+  })
+};
+
 const translateError = (error) => {
   // this is already translated
   if (error instanceof AppError) return error;
@@ -88,8 +97,9 @@ const translateError = (error) => {
   if (error?.name === 'MongoServerError' && error.code === 11000) return translateDuplicateKeyError(error);
 
   // multer errors
-  if (error instanceof multer.MulterError && error.code === 'LIMIT_UNEXPECTED_FILE') {
-    return translateMulterLimitUnexpectedFileError(error);
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') return translateMulterLimitUnexpectedFileError(error);
+    if (error.code === 'LIMIT_FILE_SIZE') return translateMulterFileSizeError(error);
   }
     
   return null;
