@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import multer from 'multer';
+import { ZodError } from 'zod';
 import AppError from "../errors/AppError.js";
 
 // cast errors happen when a value can't be
@@ -70,6 +71,21 @@ const translateMulterFileSizeError = (error) => {
   })
 };
 
+// these errors come from zod middleware.
+const translateZodError = (error) => {
+  const validationErrors = error.issues.map(validationError => ({
+    source: validationError.path[0] ?? 'request',
+    field: validationError.path.slice(1).join('.') || null,
+    message: validationError.message
+  }));
+
+  return new AppError('Validation Error', 422, {
+    code: 'VALIDATION_ERROR',
+    details: { fields: validationErrors },
+    cause: error
+  });
+};
+
 const translateError = (error) => {
   // this is already translated
   if (error instanceof AppError) return error;
@@ -101,6 +117,9 @@ const translateError = (error) => {
     if (error.code === 'LIMIT_UNEXPECTED_FILE') return translateMulterLimitUnexpectedFileError(error);
     if (error.code === 'LIMIT_FILE_SIZE') return translateMulterFileSizeError(error);
   }
+
+  // zod errors
+  if (error instanceof ZodError) return translateZodError(error);
     
   return null;
 };
