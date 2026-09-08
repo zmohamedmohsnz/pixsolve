@@ -1,10 +1,5 @@
 import sharp from 'sharp';
-import { z } from 'zod';
-
-const compressionOptionsSchema = z.object({
-  quality: z.number().int().min(1).max(100),
-}).strict();
-
+import { compressionOptionsSchema } from '../validations/job-operations.js';
 
 const compressImage = async (imgBuffer, options) => {
   // validate options

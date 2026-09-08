@@ -1,10 +1,5 @@
 import sharp from 'sharp';
-import { z } from 'zod';
-
-const resizeOptionsSchema = z.object({
-  width: z.number().int().positive(),
-  height: z.number().int().positive()
-}).strict(); // strict mean no more fields are allowed.
+import { resizeOptionsSchema } from '../validations/job-operations.js';
 
 const resizeImage = async (imgBuffer, options) => {
   const { width, height } = resizeOptionsSchema.parse(options);
