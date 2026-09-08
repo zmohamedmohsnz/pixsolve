@@ -1,9 +1,5 @@
 import sharp from 'sharp';
-import { z } from 'zod';
-
-const conversionOptionsSchema = z.object({
-  format: z.enum(['jpeg', 'png', 'webp']),
-}).strict();
+import { conversionOptionsSchema } from '../validations/job-operations.js';
 
 const convertImage = async (imgBuffer, options) => {
   // validate options
