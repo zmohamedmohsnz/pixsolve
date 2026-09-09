@@ -21,6 +21,12 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
     .optional(),
+
+  REDIS_URL: z.url({
+    protocol: /^rediss?$/, // permits only 'redis' or 'rediss'
+    hostname: /^.+$/, // requires non-empty hostname
+    error: 'REDIS_URL must be a valid redis:// or rediss:// URL with a hostname'
+  }),
 });
 
 // ─── Validate Env ───────────────────────────────────────────────────────────────
@@ -42,6 +48,7 @@ const config = Object.freeze({
   port: result.data.PORT,
   dbUri: result.data.DB_URI,
   logLevel: result.data.LOG_LEVEL ?? (result.data.NODE_ENV === 'production' ? 'info' : 'debug'),
+  redisUrl: result.data.REDIS_URL,
 });
 
 export default config;
