@@ -7,28 +7,38 @@ services:
     volumes:
       # VOLUME_NAME:PATH_INSIDE_CONTAINER
       - mongodb-data:/data/db
+  redis:
+    image: redis:8.2.9-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck: # check redis is ready
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s # run the check every 5s
+      timeout: 3s # if doesn't respond within 3s, check fails
+      retries: 5 # after 5 fails, docker marks the container as unhealthy
+      start_period: 5s # gives redis 5s to start before failures begin counting
 volumes:
   mongodb-data:
 
-# to run this docker compose:
-# `docker compose up -d mongodb`
+# run this docker compose:
+# `docker compose up -d mongodb redis`
 
 # this command tells docker compose:
 # 1. read `compose.yaml`
 # 2. create the named volume if doesn't exist.
-# 3. download `mongo:8.0` if needed.
-# 4. create and start `mongodb` container.
-# 5. run it in the background because of `-d`.
+# 3. download `mongo:8.0` and `redis` if needed.
+# 4. create, start `mongodb` and `redis` containers.
+# 5. run them in the background because of `-d`.
 
 # check MongoDB accepts connection:
 # `docker compose exec mongodb mongosh --quiet --eval "db.runCommand({ ping: 1 })"`
 
 # stop the service but keep container and data
-# `docker compose stop mongodb`
+# `docker compose stop mongodb redis`
 
 # start the stopped service again
-# `docker compose start mongodb`
+# `docker compose start mongodb redis`
 
 # normal development routine:
-# `docker compose up -d mongodb`
+# `docker compose up -d mongodb redis`
 # `npm run dev`
