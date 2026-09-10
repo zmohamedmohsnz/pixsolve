@@ -27,6 +27,18 @@ const envSchema = z.object({
     hostname: /^.+$/, // requires non-empty hostname
     error: 'REDIS_URL must be a valid redis:// or rediss:// URL with a hostname'
   }),
+
+  CLOUDINARY_CLOUD_NAME: z.string()
+    .trim()
+    .min(1, 'CLOUDINARY_CLOUD_NAME is required'),
+
+  CLOUDINARY_API_KEY: z.string()
+    .trim()
+    .min(1, 'CLOUDINARY_API_KEY is required'),
+  
+  CLOUDINARY_API_SECRET: z.string()
+    .trim()
+    .min(1, 'CLOUDINARY_API_SECRET is required')
 });
 
 // ─── Validate Env ───────────────────────────────────────────────────────────────
@@ -49,6 +61,11 @@ const config = Object.freeze({
   dbUri: result.data.DB_URI,
   logLevel: result.data.LOG_LEVEL ?? (result.data.NODE_ENV === 'production' ? 'info' : 'debug'),
   redisUrl: result.data.REDIS_URL,
+  cloudinary: Object.freeze({
+    cloudName: result.data.CLOUDINARY_CLOUD_NAME,
+    apiKey: result.data.CLOUDINARY_API_KEY,
+    apiSecret: result.data.CLOUDINARY_API_SECRET,
+  })
 });
 
 export default config;
