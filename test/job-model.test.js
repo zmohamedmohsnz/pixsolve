@@ -9,7 +9,11 @@ import config from '../src/config/env.js';
 import connectToDB from '../src/config/database.js';
 import Job from '../src/models/job.js';
 
+const GUEST_ACCESS_TOKEN_HASH = 'a'.repeat(64);
+
 const createValidJobData = overrides => ({
+  guestAccessTokenHash: GUEST_ACCESS_TOKEN_HASH,
+
   operation: 'resize',
 
   options: {
@@ -91,6 +95,47 @@ test('persists a valid pending guest job with the default status', async () => {
   assert.ok(persistedJob);
   assert.equal(persistedJob.user, null);
   assert.equal(persistedJob.status, 'pending');
+  assert.equal(persistedJob.guestAccessTokenHash, undefined);
+});
+
+test('creates a guest access token and persists only its hash', async () => {
+  const job = new Job(
+    createValidJobData({ guestAccessTokenHash: undefined })
+  );
+
+  const guestAccessToken = job.createGuestAccessToken();
+
+  assert.match(guestAccessToken, /^[A-Za-z0-9_-]{43}$/);
+  assert.match(job.guestAccessTokenHash, /^[a-f0-9]{64}$/);
+  assert.notEqual(job.guestAccessTokenHash, guestAccessToken);
+
+  await job.save();
+
+  const normallySelectedJob = await Job.findById(job._id);
+  assert.equal(normallySelectedJob.guestAccessTokenHash, undefined);
+
+  const jobWithTokenHash = await Job
+    .findById(job._id)
+    .select('+guestAccessTokenHash');
+
+  assert.equal(
+    jobWithTokenHash.guestAccessTokenHash,
+    job.guestAccessTokenHash
+  );
+});
+
+test('requires a guest access-token hash for guest jobs', async () => {
+  await assertValidationError(
+    createValidJobData({ guestAccessTokenHash: undefined }),
+    'guestAccessTokenHash'
+  );
+});
+
+test('rejects a malformed guest access-token hash', async () => {
+  await assertValidationError(
+    createValidJobData({ guestAccessTokenHash: 'not-a-sha256-hash' }),
+    'guestAccessTokenHash'
+  );
 });
 
 test('persists a processing job without output or error metadata', async () => {

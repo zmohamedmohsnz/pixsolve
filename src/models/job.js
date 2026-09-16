@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { randomBytes, createHash } from 'node:crypto';
 
 export const JOB_OPERATIONS = Object.freeze(['resize', 'compress', 'convert']);
 export const JOB_STATUSES = Object.freeze(['pending', 'processing', 'completed', 'failed']);
@@ -28,6 +29,16 @@ const jobSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null
+    },
+
+    guestAccessTokenHash: {
+      type: String,
+      trim: true,
+      select: false,
+      match: /^[a-f0-9]{64}$/,
+
+      // we use `==` intentionally to cover `null` and `undefined`
+      required() { return this.user == null; },
     },
 
     operation: {
@@ -73,6 +84,23 @@ const jobSchema = new mongoose.Schema(
   }
 );
 
-const Job = mongoose.model('Job', jobSchema);
+// ─── Instance Methods ───────────────────────────────────────────────────────────
 
+jobSchema.methods.createGuestAccessToken = function() {
+  // generate a buffer of 32 random bytes, then export it as a string.
+  // we choose base64 over hex just because it gives shorter token.
+  // `base64url` is `base64` avoids characters such as +, /, =.
+  const rawToken = randomBytes(32).toString('base64url');
+
+  // keep its hashed version in the database
+  this.guestAccessTokenHash = createHash('sha256')
+    .update(rawToken)
+    .digest('hex');
+
+  return rawToken;
+};
+
+// ─── Model ──────────────────────────────────────────────────────────────────────
+
+const Job = mongoose.model('Job', jobSchema);
 export default Job;

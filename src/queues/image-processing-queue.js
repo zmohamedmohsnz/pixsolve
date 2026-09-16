@@ -42,11 +42,23 @@ export const imageProcessingQueue = new Queue(
 export const enqueueImageProcessingJob = jobId => {
   return imageProcessingQueue.add(
     IMAGE_PROCESSING_JOB_NAME,
-    { jobId: jobId.toString() }
+
+    // data that will be passed to the processor
+    { jobId: jobId.toString() },
+
+    // sets a custom BullMQ job ID
+    { jobId: `db-job-${jobId.toString()}` }
+
   );
 };
 
 export const closeImageProcessingQueue = async () => {
   await imageProcessingQueue.close();
-  await redisConnection.quit();
+
+  if (redisConnection.status === 'ready') {
+    await redisConnection.quit();
+    return;
+  }
+
+  redisConnection.disconnect();
 };
