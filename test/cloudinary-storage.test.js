@@ -7,7 +7,8 @@ import StorageError from '../src/errors/storage-error.js';
 import {
   uploadOriginalImage,
   uploadProcessedImage,
-  retrieveOriginalImage
+  retrieveOriginalImage,
+  deleteOriginalImage
 } from '../src/services/storage.js';
 
 afterEach(() => {
@@ -205,6 +206,69 @@ test('propagates a sanitized retrieval failure', async () => {
       name: 'StorageError',
       code: 'STORAGE_RETRIEVAL_FAILED',
       message: 'Cloudinary original image retrieval failed'
+    }
+  );
+});
+
+test('deletes an original image during creation compensation', async () => {
+  const publicId = 'pixsolve/original/creation-test';
+  let receivedPublicId;
+  let receivedOptions;
+
+  mock.method(
+    cloudinary.uploader,
+    'destroy',
+    async (requestedPublicId, options) => {
+      receivedPublicId = requestedPublicId;
+      receivedOptions = options;
+
+      return { result: 'ok' };
+    }
+  );
+
+  await deleteOriginalImage(publicId);
+
+  assert.equal(receivedPublicId, publicId);
+  assert.deepEqual(receivedOptions, {
+    resource_type: 'image',
+    type: 'upload',
+    invalidate: true
+  });
+});
+
+test('treats an already absent original image as deleted', async () => {
+  mock.method(
+    cloudinary.uploader,
+    'destroy',
+    async () => ({ result: 'not found' })
+  );
+
+  await assert.doesNotReject(
+    deleteOriginalImage('pixsolve/original/already-absent')
+  );
+});
+
+test('propagates a sanitized original-image deletion failure', async () => {
+  mock.method(
+    cloudinary.uploader,
+    'destroy',
+    async () => {
+      throw new Error('Vendor deletion failure with internal details');
+    }
+  );
+
+  await assert.rejects(
+    deleteOriginalImage('pixsolve/original/creation-test'),
+    error => {
+      assert.ok(error instanceof StorageError);
+      assert.equal(error.code, 'STORAGE_DELETE_ERROR');
+      assert.equal(
+        error.message,
+        'Cloudinary original image deletion failed'
+      );
+      assert.doesNotMatch(error.message, /internal details/);
+
+      return true;
     }
   );
 });

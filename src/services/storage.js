@@ -106,3 +106,32 @@ export const retrieveOriginalImage = async secureUrl => {
     );
   }
 };
+
+export const deleteOriginalImage = async (publicId) => {
+  if (typeof publicId !== 'string' || publicId.trim() === '') {
+    throw new TypeError('Cloudinary publicId must be a non-empty string');
+  }
+
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'image',
+
+      // "type" doesn't mean the operation you wanna perform.
+      // it describes how the image was originally stored in Cloudinary.
+      // this helps us in identifying the asset.
+      type: 'upload',
+
+      // removes also cache copies of the removed image.
+      invalidate: true
+    });
+
+    if (!['ok', 'not found'].includes(result?.result)) {
+      throw new Error();
+    }
+  } catch (error) {
+    throw new StorageError(
+      'Cloudinary original image deletion failed',
+      'STORAGE_DELETE_ERROR'
+    );
+  }
+};

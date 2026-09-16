@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import errorHandler from './middleware/errorHandler.js';
 import AppError from './errors/AppError.js';
 import requestLogger from './middleware/request-logger.js';
+import jobRouter from './routes/job-routes.js';
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
 
@@ -26,6 +27,8 @@ app.use(express.json({ limit: '10kb' }));
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+app.use('/api/v1/jobs', jobRouter);
 
 // ─── Not Found Route Handler Middleware ─────────────────────────────────────────
 

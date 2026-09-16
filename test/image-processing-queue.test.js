@@ -39,6 +39,7 @@ test(`enqueues the persisted job ID as the complete queue payload`, async () => 
   assert.ok(storedJob);
   assert.equal(imageProcessingQueue.name, IMAGE_PROCESSING_QUEUE_NAME);
   assert.equal(storedJob.name, IMAGE_PROCESSING_JOB_NAME);
+  assert.equal(storedJob.id, `db-job-${jobId}`);
   
   assert.deepEqual(storedJob.data, { jobId: jobId.toString() });
   assert.deepEqual(Object.keys(storedJob.data), ['jobId']);
