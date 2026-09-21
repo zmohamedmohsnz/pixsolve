@@ -17,7 +17,7 @@ const createPersistedJob = overrides => {
     status: 'pending',
     options: { width: 100, height: 100 },
     inputFile: {
-      publicId: 'pixsolve/original/worker-test',
+      publicId: 'pixsolve/originals/worker-test',
       secureUrl:
         'https://res.cloudinary.com/test/image/upload/worker-test.jpg'
     },
@@ -41,7 +41,7 @@ const createPersistedJob = overrides => {
 
 const createQueueJob = ({ attemptsMade = 0, attempts = 3 } = {}) => ({
   id: 'bullmq-worker-test',
-  data: { jobId: DATABASE_JOB_ID },
+  data: { jobDBId: DATABASE_JOB_ID },
   attemptsMade,
   opts: { attempts }
 });
@@ -135,8 +135,8 @@ test('stores a safe error after the final failed attempt', async () => {
     processImageJob(createQueueJob({ attemptsMade: 2, attempts: 3 })),
     {
       name: 'StorageError',
-      code: 'STORAGE_RETRIEVAL_FAILED',
-      message: 'Cloudinary original image retrieval failed'
+      code: 'STORAGE_DOWNLOAD_FAILED',
+      message: 'Failed to download image'
     }
   );
 
@@ -148,7 +148,7 @@ test('stores a safe error after the final failed attempt', async () => {
   assert.equal(job.status, 'failed');
   assert.equal(
     job.errorMessage,
-    'Cloudinary original image retrieval failed'
+    'Failed to download image'
   );
   assert.equal(job.outputFile, undefined);
 });

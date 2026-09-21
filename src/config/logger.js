@@ -3,22 +3,23 @@ import os from 'node:os';
 import config from './env.js';
 
 const logger = pino({
-  // set min log level can be captured
+  // set minimum log level can be recorded.
+  // Any level below it, will be ignored.
   level: config.logLevel,
 
-  // fields inside `base` are added to every log entry
+  // fields inside `base` are added to every log.
   base: {
-    pid: process.pid, // id of currently running Node.js process
-    hostname: os.hostname(), // name of machine running the process
+    pid: process.pid,
+    hostname: os.hostname(),
     app: 'pixsolve',
     env: config.nodeEnv,
   },
 
-  // ISO timestamps instead of Unix timestamps
-  // (1710000000000 to 2026-01-01T10:00:00.000Z)
+  // ISO timestamp instead of Unix timestamp
+  // (2026-01-01T10:00:00.000Z instead of 1710000000000)
   timestamp: pino.stdTimeFunctions.isoTime,
 
-  // print output in pretty format of non production env
+  // print logs in pretty format in non production env
   ...(config.nodeEnv !== 'production' && {
     transport: {
       target: 'pino-pretty',

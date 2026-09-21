@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import multer from 'multer';
 import { ZodError } from 'zod';
-import AppError from "../errors/AppError.js";
+import AppError from "../errors/api-error.js";
 
 // cast errors happen when a value can't be
 // converted to the type required by the schema.

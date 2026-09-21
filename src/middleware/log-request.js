@@ -3,7 +3,7 @@ import pinoHttp from 'pino-http';
 import logger from '../config/logger.js';
 
 const requestLogger = pinoHttp({
-  // reuse the config of the app logger
+  // use our app logger configuration.
   logger,
 
   // generate an ID for every request so
@@ -20,7 +20,7 @@ const requestLogger = pinoHttp({
   customLogLevel: (_req, res, err) => {
     // - set the log level based on status code.
     // - use `res.err` to catch errors happen after a response starts
-    //  as status code will be `200` while `res.err` contains an error.
+    // as status code will be `200` while `res.err` contains an error.
     // - use `err` to catch errors happen while completing the underlying response.
 
     if (res.statusCode >= 500 || res.err || err) return 'error';
@@ -29,8 +29,8 @@ const requestLogger = pinoHttp({
     return 'info';
   },
 
-  // default log serializer contains unnecessary and may sensitive info
-  // so we use a custom one to provide only what we want.
+  // default log serializer contains unnecessary and may sensitive
+  // info so we use a custom one to provide only what we want.
   serializers: {
     req: (req) => ({
       method: req.method,

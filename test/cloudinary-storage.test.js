@@ -7,9 +7,9 @@ import StorageError from '../src/errors/storage-error.js';
 import {
   uploadOriginalImage,
   uploadProcessedImage,
-  retrieveOriginalImage,
-  deleteOriginalImage
-} from '../src/services/storage.js';
+  downloadImage,
+  deleteImage
+} from '../src/storage/cloudinary-storage.js';
 
 afterEach(() => {
   mock.restoreAll();
@@ -45,7 +45,7 @@ const uploadCases = [
   {
     name: 'original',
     upload: uploadOriginalImage,
-    prefix: 'pixsolve/original'
+    prefix: 'pixsolve/originals'
   },
   {
     name: 'processed',
@@ -59,26 +59,21 @@ for (const uploadCase of uploadCases) {
     const publicId = `${uploadCase.prefix}/cloudinary-id`;
     const imageBuffer = Buffer.from(`${uploadCase.name}-image`);
 
-    const uploadMock = mockSuccessfulUpload({
+    const returnedMetadata = {
       public_id: publicId,
       secure_url:
         `https://res.cloudinary.com/test/image/upload/${publicId}.jpg`,
       bytes: 100,
       format: 'jpg'
-    });
+    };
+    const uploadMock = mockSuccessfulUpload(returnedMetadata);
 
     const result = await uploadCase.upload(imageBuffer);
 
-    assert.deepEqual(result, {
-      publicId,
-      secureUrl:
-        `https://res.cloudinary.com/test/image/upload/${publicId}.jpg`
-    });
+    assert.deepEqual(result, returnedMetadata);
 
     const options = uploadMock.getReceivedOptions();
 
-    assert.equal(options.resource_type, 'image');
-    assert.equal(options.type, 'upload');
     assert.equal(options.overwrite, false);
     assert.deepEqual(uploadMock.getReceivedBuffer(), imageBuffer);
 
@@ -112,7 +107,7 @@ test('propagates a sanitized Cloudinary upload failure', async () => {
     error => {
       assert.ok(error instanceof StorageError);
       assert.equal(error.code, 'STORAGE_UPLOAD_FAILED');
-      assert.equal(error.message, 'Cloudinary image upload failed');
+      assert.equal(error.message, 'failed to upload image');
       assert.doesNotMatch(error.message, /internal details/);
 
       return true;
@@ -122,7 +117,7 @@ test('propagates a sanitized Cloudinary upload failure', async () => {
 
 test('rejects incomplete metadata returned by Cloudinary', async () => {
   mockSuccessfulUpload({
-    public_id: 'pixsolve/original/cloudinary-id'
+    public_id: 'pixsolve/originals/cloudinary-id'
   });
 
   await assert.rejects(
@@ -130,7 +125,7 @@ test('rejects incomplete metadata returned by Cloudinary', async () => {
     {
       name: 'StorageError',
       code: 'STORAGE_INVALID_RESPONSE',
-      message: 'Cloudinary returned incomplete image metadata'
+      message: 'Storage provider returned incomplete image metadata'
     }
   );
 });
@@ -153,7 +148,7 @@ test('propagates a sanitized upload stream failure', async () => {
     {
       name: 'StorageError',
       code: 'STORAGE_UPLOAD_FAILED',
-      message: 'Cloudinary image upload failed'
+      message: 'failed to upload image'
     }
   );
 });
@@ -184,7 +179,7 @@ test('retrieves an original image as a Sharp-readable buffer', async () => {
     });
   });
 
-  const retrievedBuffer = await retrieveOriginalImage(secureUrl);
+  const retrievedBuffer = await downloadImage(secureUrl);
   const metadata = await sharp(retrievedBuffer).metadata();
 
   assert.ok(Buffer.isBuffer(retrievedBuffer));
@@ -199,19 +194,19 @@ test('propagates a sanitized retrieval failure', async () => {
   });
 
   await assert.rejects(
-    retrieveOriginalImage(
+    downloadImage(
       'https://res.cloudinary.com/test/image/upload/original.jpg'
     ),
     {
       name: 'StorageError',
-      code: 'STORAGE_RETRIEVAL_FAILED',
-      message: 'Cloudinary original image retrieval failed'
+      code: 'STORAGE_DOWNLOAD_FAILED',
+      message: 'Failed to download image'
     }
   );
 });
 
 test('deletes an original image during creation compensation', async () => {
-  const publicId = 'pixsolve/original/creation-test';
+  const publicId = 'pixsolve/originals/creation-test';
   let receivedPublicId;
   let receivedOptions;
 
@@ -226,14 +221,10 @@ test('deletes an original image during creation compensation', async () => {
     }
   );
 
-  await deleteOriginalImage(publicId);
+  await deleteImage(publicId);
 
   assert.equal(receivedPublicId, publicId);
-  assert.deepEqual(receivedOptions, {
-    resource_type: 'image',
-    type: 'upload',
-    invalidate: true
-  });
+  assert.deepEqual(receivedOptions, { invalidate: true });
 });
 
 test('treats an already absent original image as deleted', async () => {
@@ -244,7 +235,7 @@ test('treats an already absent original image as deleted', async () => {
   );
 
   await assert.doesNotReject(
-    deleteOriginalImage('pixsolve/original/already-absent')
+    deleteImage('pixsolve/originals/already-absent')
   );
 });
 
@@ -258,13 +249,13 @@ test('propagates a sanitized original-image deletion failure', async () => {
   );
 
   await assert.rejects(
-    deleteOriginalImage('pixsolve/original/creation-test'),
+    deleteImage('pixsolve/originals/creation-test'),
     error => {
       assert.ok(error instanceof StorageError);
-      assert.equal(error.code, 'STORAGE_DELETE_ERROR');
+      assert.equal(error.code, 'STORAGE_DELETE_FAILED');
       assert.equal(
         error.message,
-        'Cloudinary original image deletion failed'
+        'Failed to delete image'
       );
       assert.doesNotMatch(error.message, /internal details/);
 

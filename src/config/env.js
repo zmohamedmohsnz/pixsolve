@@ -1,4 +1,7 @@
-// this module loads env variables into `process.env`
+// ─── Import Modules ─────────────────────────────────────────────────────────────
+
+// this side-effect import loads the environment
+// variables from `.env` file into `process.env`.
 import 'dotenv/config';
 import { z } from 'zod';
 
@@ -41,7 +44,7 @@ const envSchema = z.object({
     .min(1, 'CLOUDINARY_API_SECRET is required')
 });
 
-// ─── Validate Env ───────────────────────────────────────────────────────────────
+// ─── Validate Env Variables ─────────────────────────────────────────────────────
 
 // `safeParse` doesn't throw an error automatically 
 const result = envSchema.safeParse(process.env);
@@ -54,6 +57,8 @@ if (!result.success) {
 
   throw new Error(`Invalid environment configuration:\n${details}`);
 }
+
+// ─── Export Env Variables ─────────────────────────────────────────────────────
 
 const config = Object.freeze({
   nodeEnv: result.data.NODE_ENV,

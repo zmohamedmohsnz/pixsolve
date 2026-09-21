@@ -1,13 +1,16 @@
 import mongoose from "mongoose";
-import logger from "./logger.js";
+import log from "./logger.js";
 
 const connectToDB = async (uri) => {
   await mongoose.connect(uri);
 
-  logger.info(
+  log.info(
     {
       database: {
+        // server where MongoDB is running
         host: mongoose.connection.host,
+
+        // database name you're connected to
         name: mongoose.connection.name
       },
     },

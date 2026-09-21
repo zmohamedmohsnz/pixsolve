@@ -1,9 +1,9 @@
 import sharp from 'sharp';
-import { compressionOptionsSchema } from '../validations/job-operations.js';
+import { compressOptionsSchema } from '../validations/image-processing-job.js';
 
 const compressImage = async (imgBuffer, options) => {
   // validate options
-  const { quality } = compressionOptionsSchema.parse(options);
+  const { quality } = compressOptionsSchema.parse(options);
 
   // pass the image to sharp and fetch format
   const image = sharp(imgBuffer);
