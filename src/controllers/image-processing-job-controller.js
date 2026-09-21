@@ -1,5 +1,6 @@
 // ─── Import Modules ─────────────────────────────────────────────────────────────
 
+import { createHash } from 'node:crypto';
 import mongoose from "mongoose";
 import Job from '../models/job.js';
 import ApiError from '../errors/api-error.js';
@@ -49,6 +50,14 @@ const cleanupFailedJobCreation = async ({ jobId, isDocumentCreated, uploadedImag
       logCleanupFailure('queuedJob', error);
     }
   }
+};
+
+const createJobNotFoundError = () => {
+  return new ApiError(
+    'Job not found',
+    404,
+    { code: 'JOB_NOT_FOUND' }
+  );
 };
 
 // ─── POST api/v1/image-processing/jobs ──────────────────────────────────────────
@@ -150,4 +159,72 @@ export const createGuestJob = async (req, res) => {
       { code: 'JOB_CREATION_FAILED' }
     );
   }
+};
+
+// ─── GET api/v1/image-processing/jobs ───────────────────────────────────────────
+
+export const getGuestJob = async (req, res) => {
+  // 1) fetch the access token and the job id
+  const guestAccessToken = req.get('X-Guest-Access-Token');
+  const jobId = req.params.id;
+
+  if (typeof guestAccessToken !== 'string' || guestAccessToken.trim() === '') {
+    throw new ApiError(
+      'Guest access token is required.',
+      401,
+      { code: 'GUEST_ACCESS_TOKEN_REQUIRED' }
+    );
+  }
+
+  // 2) validate the access token and the job ID formats before
+  // trying to find the document because invalid job ID format
+  // may cause `CastError`, but we wanna just return `null`,
+  // and for the token, we reject the obviously malformed input early
+  // instead of unnecessarily hashing it and querying the database. 
+  const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
+  if (!mongoose.isObjectIdOrHexString(jobId) || !tokenPattern.test(guestAccessToken)) {
+    throw createJobNotFoundError();
+  }
+
+  // 3) try to fetch the job from the database
+  const guestAccessTokenHash = createHash('sha256')
+    .update(guestAccessToken)
+    .digest('hex');
+
+  const job = await Job.findOne({
+    _id: jobId,
+    user: null,
+    guestAccessTokenHash
+  })
+    .select('_id operation options status outputFile.secureUrl ' + 
+      'errorMessage createdAt updatedAt'
+    )
+    .lean();
+
+  if (!job) {
+    throw createJobNotFoundError();
+  }
+
+  // 4) return the response
+  const responseJob = {
+    id: job._id.toString(),
+    operation: job.operation,
+    options: job.options,
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt
+  };
+
+  if (job.status === 'completed') {
+    responseJob.result = { downloadUrl: job.outputFile.secureUrl };
+  }
+
+  if (job.status === 'failed') {
+    responseJob.error = { message: job.errorMessage };
+  }
+
+  return res.status(200).json({
+    status: 'success',
+    data: { job: responseJob }
+  });
 };
