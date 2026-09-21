@@ -8,7 +8,7 @@ import cloudinary from '../src/config/cloudinary.js';
 import Job from '../src/models/job.js';
 import {
   imageProcessingQueue,
-  closeImageProcessingQueue
+  shutdownImageProcessingQueue
 } from '../src/queues/image-processing-queue.js';
 
 const PNG_IMAGE = Buffer.from(
@@ -17,7 +17,7 @@ const PNG_IMAGE = Buffer.from(
 );
 
 const INPUT_FILE = {
-  publicId: 'pixsolve/original/guest-creation-test',
+  publicId: 'pixsolve/originals/guest-creation-test',
   secureUrl:
     'https://res.cloudinary.com/test/image/upload/guest-creation-test.png'
 };
@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 after(async () => {
-  await closeImageProcessingQueue();
+  await shutdownImageProcessingQueue();
 });
 
 const mockSuccessfulCloudinaryUpload = () => {
@@ -57,7 +57,7 @@ const mockSuccessfulCloudinaryUpload = () => {
 
 const sendValidRequest = () => {
   return request(app)
-    .post('/api/v1/jobs')
+    .post('/api/v1/image-processing/jobs')
     .field('operation', 'resize')
     .field(
       'options',
@@ -91,7 +91,7 @@ test('accepts a valid guest image-processing job', async () => {
   assert.equal(response.status, 202);
   assert.equal(
     response.headers.location,
-    `/api/v1/jobs/${savedJob._id}`
+    `/api/v1/image-processing/jobs/${savedJob._id}`
   );
 
   assert.deepEqual(response.body, {
@@ -130,7 +130,7 @@ test('accepts a valid guest image-processing job', async () => {
 
   const queueCall = imageProcessingQueue.add.mock.calls[0];
   assert.deepEqual(queueCall.arguments[1], {
-    jobId: savedJob._id.toString()
+    jobDBId: savedJob._id.toString()
   });
   assert.deepEqual(queueCall.arguments[2], {
     jobId: `db-job-${savedJob._id}`
@@ -151,7 +151,7 @@ test('rejects invalid operation data before external work begins', async () => {
   });
 
   const response = await request(app)
-    .post('/api/v1/jobs')
+    .post('/api/v1/image-processing/jobs')
     .field('operation', 'rotate')
     .field('options', JSON.stringify({ angle: 90 }))
     .attach('image', PNG_IMAGE, {

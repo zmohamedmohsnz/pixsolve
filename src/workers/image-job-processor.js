@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import logger from '../config/logger.js';
 import Job from '../models/job.js';
 import processImage from '../image-processing/process-image.js';
-import { retrieveOriginalImage, uploadProcessedImage } from '../services/storage.js';
+import { downloadImage, uploadProcessedImage } from '../storage/cloudinary-storage.js';
 import StorageError from "../errors/storage-error.js";
 
 // avoid leaking sensitive data.
@@ -23,14 +23,14 @@ const normalizeThrownError = error => {
 // we only use it for dependency injection in tests.
 const processImageJob = ({
   JobModel = Job,
-  downloadOriginalImg = retrieveOriginalImage,
+  downloadOriginalImg = downloadImage,
   processImg = processImage,
   uploadProcessedImg = uploadProcessedImage,
   log = logger
 } = {}) => {
   return async queuedJob => {
     const queueJobId = queuedJob?.id?.toString();
-    const dbJobId = queuedJob?.data?.jobId;
+    const dbJobId = queuedJob?.data?.jobDBId;
     const attempt = (queuedJob?.attemptsMade ?? 0) + 1;
     const maxAttempts = queuedJob?.opts?.attempts ?? 1;
     const willRetry = attempt < maxAttempts;
@@ -132,7 +132,7 @@ const processImageJob = ({
       const outputFile = await uploadProcessedImg(processedImage);
 
       dbJob.status = 'completed';
-      dbJob.outputFile = outputFile;
+      dbJob.outputFile = { publicId: outputFile.public_id, secureUrl: outputFile.secure_url };
       dbJob.errorMessage = undefined;
 
       await dbJob.save();

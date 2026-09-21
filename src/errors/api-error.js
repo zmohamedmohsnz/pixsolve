@@ -1,4 +1,4 @@
-class AppError extends Error {
+class ApiError extends Error {
   constructor(message, statusCode, {code, details, cause} = {}) {
     if (typeof message !== 'string' || message.trim() === '')
       throw new TypeError('Error message must be a non-empty string');
@@ -21,4 +21,4 @@ class AppError extends Error {
   } 
 }
 
-export default AppError;
+export default ApiError;

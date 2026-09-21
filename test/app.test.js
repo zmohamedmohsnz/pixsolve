@@ -3,11 +3,11 @@ import test, { after } from 'node:test';
 import request from 'supertest';
 import app from '../src/app.js';
 import {
-  closeImageProcessingQueue
+  shutdownImageProcessingQueue
 } from '../src/queues/image-processing-queue.js';
 
 after(async () => {
-  await closeImageProcessingQueue();
+  await shutdownImageProcessingQueue();
 });
 
 test('GET /health returns HTTP 200 and correct response body', async () => {
@@ -28,13 +28,13 @@ test('undefined route returns the standard not-found response', async () => {
   });
 });
 
-test('POST /api/v1/jobs is the guest job-creation endpoint', async () => {
-  const response = await request(app).post('/api/v1/jobs');
+test('POST /api/v1/image-processing/jobs is the guest job-creation endpoint', async () => {
+  const response = await request(app).post('/api/v1/image-processing/jobs');
 
   assert.equal(response.status, 400);
   assert.deepEqual(response.body, {
     status: 'error',
     code: 'IMAGE_REQUIRED',
-    message: 'An image file is required.'
+    message: 'An image file is required'
   });
 });

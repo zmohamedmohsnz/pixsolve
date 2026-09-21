@@ -2,10 +2,10 @@
 
 import express from 'express';
 import helmet from 'helmet';
-import errorHandler from './middleware/errorHandler.js';
-import AppError from './errors/AppError.js';
-import requestLogger from './middleware/request-logger.js';
-import jobRouter from './routes/job-routes.js';
+import errorHandler from './middleware/handle-errors.js';
+import ApiError from './errors/api-error.js';
+import requestLogger from './middleware/log-request.js';
+import imageProcessingjobRouter from './routes/image-processing-job-routes.js';
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-app.use('/api/v1/jobs', jobRouter);
+app.use('/api/v1/image-processing/jobs', imageProcessingjobRouter);
 
 // ─── Not Found Route Handler Middleware ─────────────────────────────────────────
 
@@ -36,7 +36,7 @@ app.use('/api/v1/jobs', jobRouter);
 // the request searches about a route doesn't exist.
 app.use((req, _res, next) => {
   return next(
-    new AppError(
+    new ApiError(
       `Cannot find ${req.method} ${req.path}`,
       404,
       { code: 'ROUTE_NOT_FOUND'})

@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test, { after, afterEach } from 'node:test';
 import mongoose from 'mongoose';
 import {
-  IMAGE_PROCESSING_QUEUE_NAME,
-  IMAGE_PROCESSING_JOB_NAME,
-  IMAGE_PROCESSING_JOB_OPTIONS,
+  imageProcessingQueueName,
+  imageProcessingJobName,
+  defaultJobOptions,
   imageProcessingQueue,
   enqueueImageProcessingJob,
-  closeImageProcessingQueue
+  shutdownImageProcessingQueue
 } from '../src/queues/image-processing-queue.js';
 
 // we use it to can hold the ID of the created job.
@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 // close the connections after finish testing
-after(async () => { await closeImageProcessingQueue(); });
+after(async () => { await shutdownImageProcessingQueue(); });
 
 test(`enqueues the persisted job ID as the complete queue payload`, async () => {
   // create random ID
@@ -37,12 +37,12 @@ test(`enqueues the persisted job ID as the complete queue payload`, async () => 
 
   // do some verifications
   assert.ok(storedJob);
-  assert.equal(imageProcessingQueue.name, IMAGE_PROCESSING_QUEUE_NAME);
-  assert.equal(storedJob.name, IMAGE_PROCESSING_JOB_NAME);
+  assert.equal(imageProcessingQueue.name, imageProcessingQueueName);
+  assert.equal(storedJob.name, imageProcessingJobName);
   assert.equal(storedJob.id, `db-job-${jobId}`);
   
-  assert.deepEqual(storedJob.data, { jobId: jobId.toString() });
-  assert.deepEqual(Object.keys(storedJob.data), ['jobId']);
+  assert.deepEqual(storedJob.data, { jobDBId: jobId.toString() });
+  assert.deepEqual(Object.keys(storedJob.data), ['jobDBId']);
 });
 
 test(`applies the approved retry and cleanup policy`, async () => {
@@ -56,21 +56,21 @@ test(`applies the approved retry and cleanup policy`, async () => {
   assert.ok(storedJob);
   assert.equal(
     storedJob.opts.attempts,
-    IMAGE_PROCESSING_JOB_OPTIONS.attempts
+    defaultJobOptions.attempts
   );
 
   assert.deepEqual(
     storedJob.opts.backoff,
-    IMAGE_PROCESSING_JOB_OPTIONS.backoff
+    defaultJobOptions.backoff
   );
 
   assert.deepEqual(
     storedJob.opts.removeOnComplete,
-    IMAGE_PROCESSING_JOB_OPTIONS.removeOnComplete
+    defaultJobOptions.removeOnComplete
   );
 
   assert.deepEqual(
     storedJob.opts.removeOnFail,
-    IMAGE_PROCESSING_JOB_OPTIONS.removeOnFail
+    defaultJobOptions.removeOnFail
   );
 });

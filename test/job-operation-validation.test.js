@@ -2,22 +2,22 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import request from 'supertest';
-import errorHandler from '../src/middleware/errorHandler.js';
-import uploadSingleImage from '../src/middleware/image-upload.js';
-import validate from '../src/middleware/validate.js';
+import errorHandler from '../src/middleware/handle-errors.js';
+import { parseImageUpload } from '../src/middleware/parse-image-upload.js';
+import validateRequest from '../src/middleware/validate-request.js';
 import {
-  jobOperationRequestSchema,
+  imageProcessingRequestSchema,
   MAX_RESIZE_DIMENSION
-} from '../src/validations/job-operations.js';
+} from '../src/validations/image-processing-job.js';
 
 const createTestApp = () => {
   const app = express();
 
   app.post(
     '/jobs',
-    uploadSingleImage,
-    validate(jobOperationRequestSchema),
-    (req, res) => res.status(200).json(req.validated.body)
+    parseImageUpload,
+    validateRequest(imageProcessingRequestSchema),
+    (req, res) => res.status(200).json(req.validatedData.body)
   );
 
   app.use(errorHandler);

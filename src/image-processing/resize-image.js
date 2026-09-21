@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { resizeOptionsSchema } from '../validations/job-operations.js';
+import { resizeOptionsSchema } from '../validations/image-processing-job.js';
 
 const resizeImage = async (imgBuffer, options) => {
   const { width, height } = resizeOptionsSchema.parse(options);

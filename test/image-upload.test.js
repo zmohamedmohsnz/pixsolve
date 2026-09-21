@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import request from 'supertest';
-import errorHandler from '../src/middleware/errorHandler.js';
-import uploadSingleImage, { MAX_IMAGE_SIZE_MB } from '../src/middleware/image-upload.js';
-import validateUploadedImage from '../src/middleware/validate-uploaded-image.js';
+import errorHandler from '../src/middleware/handle-errors.js';
+import { parseImageUpload, MAX_IMAGE_SIZE_MB } from '../src/middleware/parse-image-upload.js';
+import { validateImageUpload } from '../src/middleware/validate-image-upload.js';
 
 // real image files encoded as Base64
 const JPEG_IMAGE = Buffer.from(
@@ -49,7 +49,7 @@ const VALID_IMAGE_CASES = [
 const createTestApp = () => {
   const app = express();
 
-  app.post('/upload', uploadSingleImage, validateUploadedImage, (req, res) => {
+  app.post('/upload', parseImageUpload, validateImageUpload, (req, res) => {
     res.status(200).json({
       accepted: true,
       fieldname: req.file.fieldname,
@@ -92,7 +92,7 @@ test('rejects a request with no image', async () => {
   assert.deepEqual(response.body, {
     status: 'error',
     code: 'IMAGE_REQUIRED',
-    message: 'An image file is required.'
+    message: 'An image file is required'
   });
 });
 

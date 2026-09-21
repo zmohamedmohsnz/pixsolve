@@ -1,9 +1,9 @@
 import sharp from 'sharp';
-import { conversionOptionsSchema } from '../validations/job-operations.js';
+import { convertOptionsSchema } from '../validations/image-processing-job.js';
 
 const convertImage = async (imgBuffer, options) => {
   // validate options
-  const { format } = conversionOptionsSchema.parse(options);
+  const { format } = convertOptionsSchema.parse(options);
   
   // pass it sharp, change format, and finally export it
   return sharp(imgBuffer).toFormat(format).toBuffer();

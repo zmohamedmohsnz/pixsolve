@@ -22,7 +22,7 @@ const createValidJobData = overrides => ({
   },
 
   inputFile: {
-    publicId: 'pixsolve/original/example',
+    publicId: 'pixsolve/originals/example',
     secureUrl: 'https://res.cloudinary.com/example/image/upload/example.jpg'
   },
 
@@ -77,7 +77,7 @@ test('persists a valid pending guest job with the default status', async () => {
 
   assert.equal(
     job.inputFile.publicId,
-    'pixsolve/original/example'
+    'pixsolve/originals/example'
   );
 
   assert.equal(
