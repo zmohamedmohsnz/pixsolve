@@ -41,7 +41,15 @@ const envSchema = z.object({
   
   CLOUDINARY_API_SECRET: z.string()
     .trim()
-    .min(1, 'CLOUDINARY_API_SECRET is required')
+    .min(1, 'CLOUDINARY_API_SECRET is required'),
+  
+  RESEND_API_KEY: z.string()
+    .trim()
+    .min(1, 'RESEND_API_KEY is required'),
+  
+  RESEND_FROM_EMAIL: z.string()
+    .trim()
+    .pipe(z.email())
 });
 
 // ─── Validate Env Variables ─────────────────────────────────────────────────────
@@ -70,6 +78,10 @@ const config = Object.freeze({
     cloudName: result.data.CLOUDINARY_CLOUD_NAME,
     apiKey: result.data.CLOUDINARY_API_KEY,
     apiSecret: result.data.CLOUDINARY_API_SECRET,
+  }),
+  email: Object.freeze({
+    apiKey: result.data.RESEND_API_KEY,
+    fromEmail: result.data.RESEND_FROM_EMAIL
   })
 });
 

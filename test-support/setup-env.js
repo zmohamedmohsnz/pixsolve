@@ -6,3 +6,5 @@ process.env.REDIS_URL = 'redis://127.0.0.1:6379';
 process.env.CLOUDINARY_CLOUD_NAME = 'pixsolve-test';
 process.env.CLOUDINARY_API_KEY = 'test-api-key';
 process.env.CLOUDINARY_API_SECRET = 'test-api-secret';
+process.env.RESEND_API_KEY = 'test-resend-api-key';
+process.env.RESEND_FROM_EMAIL = 'auth@example.com';
