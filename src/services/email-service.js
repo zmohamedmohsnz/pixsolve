@@ -50,3 +50,50 @@ export const sendEmail = async ({ to, subject, text, html }) => {
 
   if (response?.error || !response?.data?.id) throw deliveryError(response?.error);
 };
+
+// ─── Templates ──────────────────────────────────────────────────────────────────
+
+export const sendVerificationEmail = async (to, verificationUrl) => {
+  const text = [
+    'Welcome to PixSolve.',
+     '',
+    `Verify your email: ${verificationUrl}`,
+    '',
+    'This link expires soon.'
+  ].join('\n');
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify your email</title>
+  </head>
+  <body>
+    <h2>Welcome to Pixsolve!</h2>
+
+    <p>
+      Thanks for signing up. Please verify your email address to complete your registration.
+    </p>
+
+    <a href="${verificationUrl}">Verify Email</a>
+
+    <p>This verification link will expire soon.</p>
+
+    <p>
+      If you didn't create a Pixsolve account, you can safely ignore this email.
+    </p>
+
+    <p>— The Pixsolve Team</p>
+  </body>
+  </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "Verify your email address",
+    text,
+    html
+  });
+};

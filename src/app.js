@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import errorHandler from './middleware/handle-errors.js';
 import ApiError from './errors/api-error.js';
 import requestLogger from './middleware/log-request.js';
+import authRouter from './routes/auth-routes.js'
 import imageProcessingjobRouter from './routes/image-processing-job-routes.js';
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/image-processing/jobs', imageProcessingjobRouter);
 
 // ─── Not Found Route Handler Middleware ─────────────────────────────────────────
