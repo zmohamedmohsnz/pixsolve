@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { email, z } from 'zod';
 
 // ─── Helper Tools ─────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,17 @@ export const signupSchema = z.object({
 
   query: z.unknown(),
   params: z.unknown()
+}).strict();
+
+export const loginSchema = z.object({
+  body: z.object({
+    email: emailSchema,
+    password: stringFieldSchema('Password')
+      .max(72, 'Password must not exceed 72 characters')
+  }).strict(),
+
+  query: z.unknown(),
+  params: z.unknown(),
 }).strict();
 
 export const verifyEmailSchema = z.object({
