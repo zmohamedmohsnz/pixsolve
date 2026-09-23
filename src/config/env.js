@@ -68,6 +68,14 @@ const envSchema = z.object({
       url.hash === '';
   }, 'PUBLIC_API_URL must be an origin without a path, query, or fragment')
   .transform(value => value.replace(/\/+$/, '')),
+
+  JWT_ACCESS_TOKEN_SECRET: z.string()
+    .trim()
+    .min(32, 'JWT_ACCESS_TOKEN_SECRET must be at least 32 characters'),
+
+  JWT_ACCESS_TOKEN_LIFETIME_MINS: z.coerce.number()
+    .int('JWT_ACCESS_TOKEN_LIFETIME_MINS must be an integer')
+    .min(1, 'JWT_ACCESS_TOKEN_LIFETIME_MINS is required')
 });
 
 // ─── Validate Env Variables ─────────────────────────────────────────────────────
@@ -103,6 +111,10 @@ const config = Object.freeze({
   }),
   emailVerificationTokenLifeTimeMins: result.data.EMAIL_VERIFICATION_TOKEN_LIFETIME_MINS,
   publicApiUrl: result.data.PUBLIC_API_URL,
+  jwt: Object.freeze({
+    accessTokenSecret: result.data.JWT_ACCESS_TOKEN_SECRET,
+    accessTokenLifetimeMins: result.data.JWT_ACCESS_TOKEN_LIFETIME_MINS
+  })
 });
 
 export default config;

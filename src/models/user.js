@@ -42,13 +42,6 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Email is required']
     },
 
-    password: {
-      type: String,
-      trim: true,
-      required: [true, 'Password is required'],
-      select: false
-    },
-
     emailVerifiedAt: {
       type: Date,
       default: null
@@ -62,6 +55,18 @@ const userSchema = new mongoose.Schema(
     emailVerificationTokenExpiresAt: {
       type: Date,
       select: false 
+    },
+
+    password: {
+      type: String,
+      trim: true,
+      required: [true, 'Password is required'],
+      select: false
+    },
+
+    lastLoginAt: {
+      type: Date,
+      default: null
     },
 
     isActive: {
@@ -100,6 +105,10 @@ userSchema.pre('save', async function() {
 });
 
 // ─── Instance Methods ───────────────────────────────────────────────────────────
+
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return argon2.verify(this.password, candidatePassword);
+};
 
 userSchema.methods.createEmailVerificationToken = function() {
   // 1) generate a token

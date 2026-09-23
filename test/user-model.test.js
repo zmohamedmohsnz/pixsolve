@@ -46,6 +46,8 @@ test('hashes passwords and never returns hashes in normal User serialization', a
 
   assert.notEqual(user.password, 'StrongPass1!');
   assert.match(user.password, /^\$argon2id\$/);
+  assert.equal(await user.comparePassword('StrongPass1!'), true);
+  assert.equal(await user.comparePassword('WrongPass1!'), false);
 
   const normallyLoadedUser = await User.findById(user._id);
   assert.equal(normallyLoadedUser.password, undefined);

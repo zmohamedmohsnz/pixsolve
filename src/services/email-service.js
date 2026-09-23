@@ -97,3 +97,110 @@ export const sendVerificationEmail = async (to, verificationUrl) => {
     html
   });
 };
+
+export const sendSuccessLoginNotificationEmail = async (to, { ip, userAgent, time }) => {
+  const text = [
+    'A new login to your PixSolve account was detected.',
+    '',
+    `IP address: ${ip}`,
+    `Device: ${userAgent}`,
+    `Time: ${time}`,
+    '',
+    'If this was you, you can safely ignore this email.',
+    '',
+    "If you didn't log in, please secure your account immediately."
+  ].join('\n');
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New login detected</title>
+  </head>
+  <body>
+    <h2>New login detected</h2>
+
+    <p>A new login to your PixSolve account was detected.</p>
+
+    <p>
+      <strong>IP address:</strong> ${ip}<br>
+      <strong>Device:</strong> ${userAgent}<br>
+      <strong>Time:</strong> ${time}
+    </p>
+
+    <p>If this was you, you can safely ignore this email.</p>
+
+    <p>
+      If you didn't log in, please secure your account immediately.
+    </p>
+
+    <p>— The PixSolve Team</p>
+  </body>
+  </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: 'New login to your PixSolve account',
+    text,
+    html
+  });
+};
+
+export const sendFailedLoginNotificationEmail = async (
+  to,
+  { ip, userAgent, time }
+) => {
+  const text = [
+    'A failed login attempt to your PixSolve account was detected.',
+    '',
+    `IP address: ${ip}`,
+    `Device: ${userAgent}`,
+    `Time: ${time}`,
+    '',
+    'If this was you, you can safely ignore this email.',
+    '',
+    "If this wasn't you, we recommend securing your account."
+  ].join('\n');
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Failed login attempt</title>
+  </head>
+  <body>
+    <h2>Failed login attempt</h2>
+
+    <p>
+      A failed login attempt to your PixSolve account was detected.
+    </p>
+
+    <p>
+      <strong>IP address:</strong> ${ip}<br>
+      <strong>Device:</strong> ${userAgent}<br>
+      <strong>Time:</strong> ${time}
+    </p>
+
+    <p>If this was you, you can safely ignore this email.</p>
+
+    <p>
+      If this wasn't you, we recommend securing your account.
+    </p>
+
+    <p>— The PixSolve Team</p>
+  </body>
+  </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: 'Failed login attempt to your PixSolve account',
+    text,
+    html
+  });
+};
