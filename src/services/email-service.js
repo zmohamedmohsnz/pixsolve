@@ -4,7 +4,7 @@ import resend from '../config/resend.js';
 import config from '../config/env.js';
 import ApiError from '../errors/api-error.js';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────────
 
 const deliveryError = (rawError) => new ApiError(
   'This email could not be sent.',
@@ -15,9 +15,9 @@ const deliveryError = (rawError) => new ApiError(
   }
 );
 
-// ─── Base Sender Method ──────────────────────────────────────────────────
+// ─── Base Sender Method ─────────────────────────────────────────────────────────
 
-export const sendEmail = async ({ to, subject, text }) => {
+export const sendEmail = async ({ to, subject, text, html }) => {
   if (typeof to !== 'string' || to.trim() === '') {
     throw new TypeError('Recipient must be a non-empty string');
   }
@@ -30,6 +30,10 @@ export const sendEmail = async ({ to, subject, text }) => {
     throw new TypeError('Message must be a non-empty string');
   }
 
+  if (html !== undefined && (typeof html !== 'string' || html.trim() === '')) {
+    throw new TypeError('HTML message must be a non-empty string');
+  }
+
   let response;
 
   try {
@@ -37,7 +41,8 @@ export const sendEmail = async ({ to, subject, text }) => {
       from: config.email.fromEmail,
       to: to.trim(),
       subject,
-      text
+      text,
+      ...(html !== undefined && { html })
     });
   } catch (error) {
     throw deliveryError(error);
