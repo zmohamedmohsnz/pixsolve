@@ -74,9 +74,9 @@ export const loginSchema = z.object({
 }).strict();
 
 export const verifyEmailSchema = z.object({
-  params: z.object({
+  body: z.object({
     token: z.string().trim().min(1, 'Verification token is required')
   }).strict(),
-  body: z.unknown(),
+  params: z.unknown(),
   query: z.unknown()
 }).strict();

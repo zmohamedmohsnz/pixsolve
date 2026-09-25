@@ -9,6 +9,6 @@ process.env.CLOUDINARY_API_SECRET = 'test-api-secret';
 process.env.RESEND_API_KEY = 'test-resend-api-key';
 process.env.RESEND_FROM_EMAIL = 'auth@example.com';
 process.env.EMAIL_VERIFICATION_TOKEN_LIFETIME_MINS = '1440';
-process.env.PUBLIC_API_URL = 'http://localhost:3000';
+process.env.PUBLIC_APP_URL = 'http://localhost:3000';
 process.env.JWT_ACCESS_TOKEN_SECRET = 'test-only-access-token-secret-with-at-least-32-characters';
 process.env.JWT_ACCESS_TOKEN_LIFETIME_MINS = '15';

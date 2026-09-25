@@ -2,17 +2,6 @@ import { randomUUID } from 'node:crypto';
 import pinoHttp from 'pino-http';
 import logger from '../config/logger.js';
 
-const getSafeRequestPath = req => {
-  // exclude query string
-  const path = req.originalUrl?.split('?')[0] ?? req.url?.split('?')[0];
-
-  // exclude token of verify-email route
-  return path.replace(
-    /^\/api\/v1\/auth\/verify-email\/[^/]+$/,
-    '/api/v1/auth/verify-email/[REDACTED]'
-  );
-};
-
 const requestLogger = pinoHttp({
   // use our app logger configuration.
   logger,
@@ -48,7 +37,7 @@ const requestLogger = pinoHttp({
 
       // `split()` to exclude query string
       // that may contain sensitive input.
-      path: getSafeRequestPath(req),
+      path: req.raw?.path ?? req.url?.split('?')[0],
 
       ip: req.raw?.ip ?? req.remoteAddress,
       userAgent: req.headers?.['user-agent'],

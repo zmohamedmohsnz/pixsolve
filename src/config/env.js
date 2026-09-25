@@ -55,10 +55,10 @@ const envSchema = z.object({
     .int('Verification Token TTL must be an integer')
     .min(1, 'Verification Token TTL must be at least 1'),
   
-  PUBLIC_API_URL: z.url({
+  PUBLIC_APP_URL: z.url({
     protocol: /^https?$/,
     hostname: /^.+$/,
-    error: 'PUBLIC_API_URL must be a valid http:// or https:// URL with a hostname'
+    error: 'PUBLIC_APP_URL must be a valid http:// or https:// URL with a hostname'
   })
   .refine(value => {
     const url = new URL(value);
@@ -66,7 +66,7 @@ const envSchema = z.object({
     return url.pathname === '/' &&
       url.search === '' &&
       url.hash === '';
-  }, 'PUBLIC_API_URL must be an origin without a path, query, or fragment')
+  }, 'PUBLIC_APP_URL must be an origin without a path, query, or fragment')
   .transform(value => value.replace(/\/+$/, '')),
 
   JWT_ACCESS_TOKEN_SECRET: z.string()
@@ -110,7 +110,7 @@ const config = Object.freeze({
     fromEmail: result.data.RESEND_FROM_EMAIL
   }),
   emailVerificationTokenLifeTimeMins: result.data.EMAIL_VERIFICATION_TOKEN_LIFETIME_MINS,
-  publicApiUrl: result.data.PUBLIC_API_URL,
+  publicAppUrl: result.data.PUBLIC_APP_URL,
   jwt: Object.freeze({
     accessTokenSecret: result.data.JWT_ACCESS_TOKEN_SECRET,
     accessTokenLifetimeMins: result.data.JWT_ACCESS_TOKEN_LIFETIME_MINS
