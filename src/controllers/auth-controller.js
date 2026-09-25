@@ -3,7 +3,11 @@
 import { createHash } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
-import { sendVerificationEmail, sendSuccessLoginNotificationEmail, sendFailedLoginNotificationEmail} from '../services/email-service.js';
+import {
+  sendVerificationEmail,
+  sendSuccessLoginNotificationEmail,
+  sendFailedLoginNotificationEmail,
+} from '../services/email-service.js';
 import ApiError from '../errors/api-error.js';
 import config from '../config/env.js';
 
@@ -22,8 +26,9 @@ const createSendVerificationEmail = async (req, user) => {
 
   // 2) create the verification url and send the email
   try {
-    const verificationUrl = `${config.publicApiUrl}/api/v1/auth/verify-email/${token}`;
-    await sendVerificationEmail(user.email, verificationUrl);
+    const verificationUrl = new URL('/verify-email', config.publicAppUrl);
+    verificationUrl.searchParams.set('token', token);
+    await sendVerificationEmail(user.email, verificationUrl.toString());
   } catch (error) {
     // we catch only to do some cleanup, but error is already ApiError
     user.emailVerificationToken = undefined;
@@ -181,16 +186,16 @@ export const login = async (req, res) => {
   });
 };
 
-// ─── GET api/v1/auth/verify-email/:token ──────────────────────────────────────────
+// ─── POST api/v1/auth/verify-email/ ──────────────────────────────────────────
 
 export const verifyEmail = async (req, res) => {
   // 1) Quick syntax check before hashing
-  const { token } = req.validatedData.params;
+  const { token } = req.validatedData.body;
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw invalidVerificationTokenError();
 
   // 2) hash the incoming raw token
   const hashedToken = createHash('sha256')
-    .update(req.validatedData.params.token)
+    .update(req.validatedData.body.token)
     .digest('hex');
 
   // 3) find user associated with the token

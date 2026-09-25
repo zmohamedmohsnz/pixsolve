@@ -58,6 +58,20 @@ test('creates an unverified User and requests one verification email', async () 
   assert.equal(sentMessages[0].to, 'ada@example.com');
   assert.equal(typeof sentMessages[0].text, 'string');
   assert.equal(typeof sentMessages[0].html, 'string');
+  const verificationUrl = new URL(
+    sentMessages[0].text.match(/Verify your email: (\S+)/)[1]
+  );
+  assert.equal(verificationUrl.origin, 'http://localhost:3000');
+  assert.equal(verificationUrl.pathname, '/verify-email');
+  assert.match(verificationUrl.searchParams.get('token'), /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(verificationUrl.hash, '');
+  assert.equal(verificationUrl.searchParams.size, 1);
+  assert.equal(
+    createdUser.emailVerificationToken,
+    createHash('sha256')
+      .update(verificationUrl.searchParams.get('token'))
+      .digest('hex')
+  );
   assert.ok(!JSON.stringify(response.body).includes(createdUser.emailVerificationToken));
 });
 
@@ -114,7 +128,8 @@ test('verifies a User with a valid unexpired token and consumes it atomically', 
   });
 
   const response = await request(app)
-    .get(`/api/v1/auth/verify-email/${token}`);
+    .post('/api/v1/auth/verify-email')
+    .send({ token });
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.body, {
@@ -137,7 +152,8 @@ test('verifies a User with a valid unexpired token and consumes it atomically', 
 
 test('rejects malformed verification tokens through centralized error handling', async () => {
   const response = await request(app)
-    .get('/api/v1/auth/verify-email/not-a-valid-token');
+    .post('/api/v1/auth/verify-email')
+    .send({ token: 'not-a-valid-token' });
 
   assert.equal(response.status, 400);
   assert.deepEqual(response.body, {
@@ -154,7 +170,8 @@ for (const state of ['expired', 'already used']) {
     mock.method(User, 'findOneAndUpdate', async () => null);
 
     const response = await request(app)
-      .get(`/api/v1/auth/verify-email/${token}`);
+      .post('/api/v1/auth/verify-email')
+      .send({ token });
 
     assert.equal(response.status, 400);
     assert.equal(response.body.code, 'INVALID_TOKEN');
