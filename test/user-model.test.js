@@ -88,3 +88,26 @@ test('persists only a hash of an email-verification token', async () => {
   );
   assert.ok(userWithSecurityFields.emailVerificationTokenExpiresAt instanceof Date);
 });
+
+test('persists only a hash of a password-reset token', async () => {
+  const user = new User(validUser());
+  const token = user.createPasswordResetToken();
+
+  assert.match(token, /^[A-Za-z0-9_-]{43}$/);
+  assert.match(user.passwordResetToken, /^[a-f0-9]{64}$/);
+  assert.notEqual(user.passwordResetToken, token);
+  assert.ok(user.passwordResetTokenExpiresAt instanceof Date);
+
+  await user.save();
+
+  const normallyLoadedUser = await User.findById(user._id);
+  assert.equal(normallyLoadedUser.passwordResetToken, undefined);
+  assert.equal(normallyLoadedUser.passwordResetTokenExpiresAt, undefined);
+  assert.equal(Object.hasOwn(normallyLoadedUser.toJSON(), 'passwordResetToken'), false);
+
+  const userWithSecurityFields = await User.findById(user._id)
+    .select('+passwordResetToken +passwordResetTokenExpiresAt');
+
+  assert.equal(userWithSecurityFields.passwordResetToken, user.passwordResetToken);
+  assert.ok(userWithSecurityFields.passwordResetTokenExpiresAt instanceof Date);
+});
