@@ -19,9 +19,13 @@ const removeSecurityFields = (_document, returnedValue) => {
   delete returnedValue.password;
   delete returnedValue.emailVerificationToken;
   delete returnedValue.emailVerificationTokenExpiresAt;
+  delete returnedValue.passwordResetToken;
+  delete returnedValue.passwordResetTokenExpiresAt;
 
   return returnedValue;
 };
+
+const hashPassword = password => argon2.hash(password, ARGON2_OPTIONS);
 
 // ─── Schema ─────────────────────────────────────────────────────────────────────
 
@@ -69,6 +73,21 @@ const userSchema = new mongoose.Schema(
       default: null
     },
 
+    passwordChangedAt: {
+      type: Date,
+      default: null
+    },
+
+    passwordResetToken: {
+      type: String,
+      select: false
+    },
+
+    passwordResetTokenExpiresAt: {
+      type: Date,
+      select: false 
+    },
+
     isActive: {
       type: Boolean,
       default: true
@@ -101,13 +120,34 @@ userSchema.pre('save', async function() {
   if (!this.isModified('password')) return;
 
   // hash the password before storing it
-  this.password = await argon2.hash(this.password, ARGON2_OPTIONS);
+  this.password = await hashPassword(this.password);
 });
+
+// ─── Static Methods ─────────────────────────────────────────────────────────────
+
+userSchema.statics.hashPassword = hashPassword;
 
 // ─── Instance Methods ───────────────────────────────────────────────────────────
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return argon2.verify(this.password, candidatePassword);
+};
+
+userSchema.methods.createPasswordResetToken = function() {
+  // 1) generate the token
+  const rawToken = crypto.randomBytes(32).toString('base64url');
+
+  // 2) store the hashed version
+  this.passwordResetToken = crypto.createHash('sha256')
+    .update(rawToken)
+    .digest('hex');
+  
+  // 3) set expiration date for the token
+  this.passwordResetTokenExpiresAt = Date.now() + 
+    config.passwordResetTokenLifeTimeMins * 60 * 1000;
+  
+  // 4) return the raw token
+  return rawToken;
 };
 
 userSchema.methods.createEmailVerificationToken = function() {

@@ -3,13 +3,17 @@ import validateRequest from '../middleware/validate-request.js';
 import {
   signupSchema,
   loginSchema,
-  verifyEmailSchema
+  verifyEmailSchema,
+  forgetPasswordSchema,
+  resetPasswordSchema
 } from '../validations/auth.js';
 
 import {
   signup,
   login,
-  verifyEmail
+  verifyEmail,
+  forgetPassword,
+  resetPassword
 } from '../controllers/auth-controller.js';
 
 const router = new express.Router();
@@ -24,6 +28,18 @@ router.post(
   '/login',
   validateRequest(loginSchema),
   login
+);
+
+router.post(
+  '/forgot-password',
+  validateRequest(forgetPasswordSchema),
+  forgetPassword
+);
+
+router.patch(
+  '/reset-password',
+  validateRequest(resetPasswordSchema),
+  resetPassword
 );
 
 router.post(

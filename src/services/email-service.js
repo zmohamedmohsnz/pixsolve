@@ -204,3 +204,52 @@ export const sendFailedLoginNotificationEmail = async (
     html
   });
 };
+
+export const sendPasswordResetEmail = async (to, resetUrl, expiresIn) => {
+  const text = [
+    'We received a request to reset your PixSolve password.',
+    '',
+    `Reset your password: ${resetUrl}`,
+    '',
+    `This link will expire in ${expiresIn} minutes.`,
+    '',
+    "If you didn't request a password reset, you can safely ignore this email."
+  ].join('\n');
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset your password</title>
+  </head>
+  <body>
+    <h2>Reset your password</h2>
+
+    <p>
+      We received a request to reset your PixSolve password.
+    </p>
+
+    <a href="${resetUrl}">Reset Password</a>
+
+    <p>
+      This link will expire in ${expiresIn} minutes.
+    </p>
+
+    <p>
+      If you didn't request a password reset, you can safely ignore this email.
+    </p>
+
+    <p>— The PixSolve Team</p>
+  </body>
+  </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: 'Reset your PixSolve password',
+    text,
+    html
+  });
+};

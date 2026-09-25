@@ -73,6 +73,31 @@ export const loginSchema = z.object({
   params: z.unknown(),
 }).strict();
 
+export const forgetPasswordSchema = z.object({
+  body: z.object({
+    email: emailSchema
+  }).strict(),
+
+  params: z.unknown(),
+  query: z.unknown()
+}).strict();
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string().trim().min(1, 'Reset token is required'),
+    password: passwordSchema,
+    confirmPassword: stringFieldSchema('Confirm Password')
+  })
+  .strict()
+  .refine(
+    body => body.confirmPassword === body.password,
+    { message: 'Passwords don\'t match', path: ['confirmPassword'] }
+  ),
+
+  params: z.unknown(),
+  query: z.unknown()
+});
+
 export const verifyEmailSchema = z.object({
   body: z.object({
     token: z.string().trim().min(1, 'Verification token is required')

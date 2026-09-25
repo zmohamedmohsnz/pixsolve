@@ -75,7 +75,11 @@ const envSchema = z.object({
 
   JWT_ACCESS_TOKEN_LIFETIME_MINS: z.coerce.number()
     .int('JWT_ACCESS_TOKEN_LIFETIME_MINS must be an integer')
-    .min(1, 'JWT_ACCESS_TOKEN_LIFETIME_MINS is required')
+    .min(1, 'JWT_ACCESS_TOKEN_LIFETIME_MINS is required'),
+
+  PASSWORD_RESET_TOKEN_LIFETIME_MINS: z.coerce.number()
+    .int('JWT_ACCESS_TOKEN_LIFETIME_MINS must be an integer')
+    .min(1, 'JWT_ACCESS_TOKEN_LIFETIME_MINS is required'),
 });
 
 // ─── Validate Env Variables ─────────────────────────────────────────────────────
@@ -114,7 +118,8 @@ const config = Object.freeze({
   jwt: Object.freeze({
     accessTokenSecret: result.data.JWT_ACCESS_TOKEN_SECRET,
     accessTokenLifetimeMins: result.data.JWT_ACCESS_TOKEN_LIFETIME_MINS
-  })
+  }),
+  passwordResetTokenLifeTimeMins: result.data.PASSWORD_RESET_TOKEN_LIFETIME_MINS
 });
 
 export default config;

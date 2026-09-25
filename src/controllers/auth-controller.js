@@ -7,6 +7,7 @@ import {
   sendVerificationEmail,
   sendSuccessLoginNotificationEmail,
   sendFailedLoginNotificationEmail,
+  sendPasswordResetEmail
 } from '../services/email-service.js';
 import ApiError from '../errors/api-error.js';
 import config from '../config/env.js';
@@ -17,6 +18,12 @@ const invalidVerificationTokenError = () => new ApiError(
   'Token is invalid or has expired',
   400,
   { code: 'INVALID_TOKEN' }
+);
+
+const invalidPasswordResetTokenError = () => new ApiError(
+  'Password reset token is invalid or has expired.',
+  400,
+  { code: 'INVALID_PASSWORD_RESET_TOKEN' }
 );
 
 const createSendVerificationEmail = async (req, user) => {
@@ -183,6 +190,148 @@ export const login = async (req, res) => {
       tokenType: 'Bearer',
       expiresIn: config.jwt.accessTokenLifetimeMins * 60
     }
+  });
+};
+
+// ─── POST api/v1/auth/forgot-password ────────────────────────────────────────────
+
+export const forgetPassword = async (req, res) => {
+  // 1) fetch the user by their email
+  const user = await User.findOne({
+    email: req.validatedData.body.email,
+    isActive: true
+  });
+
+  if (user) {
+    // 2) generate the token
+    const resetToken = user.createPasswordResetToken();
+    const resetTokenHashed = user.passwordResetToken;
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      // 3) create the reset url
+      const resetUrl = new URL('/reset-password', config.publicAppUrl);
+      resetUrl.searchParams.set('token', resetToken);
+
+      // 4) send the email with the reset url
+      await sendPasswordResetEmail(
+        user.email,
+        resetUrl.toString(),
+        config.passwordResetTokenLifeTimeMins
+      )
+    } catch (err) {
+      // we check the hashed token to don't delete the hashed token
+      // issued by another request as the new request will override the
+      // current hashed token and we have the old one in memory so we check
+      // it exists in db. if not exists, this mean a new request came so don't
+      // remove the token.
+      await User.updateOne(
+        { _id: user._id, passwordResetToken: resetTokenHashed },
+        {
+          $unset: {
+            passwordResetToken: '',
+            passwordResetTokenExpiresAt: ''
+          }
+        }
+      );
+
+      throw err;
+    }
+
+    // 5) log sending email
+    req.log.info(
+      {
+        event: 'passwordResetRequested',
+        userId: user._id.toString()
+      },
+      'Password reset requested'
+    );
+  }
+
+  // 6) return the response
+  res.status(200).json({
+    status: 'success',
+    message: 'a password-reset link has been sent to your email'
+  });
+};
+
+// ─── PATCH api/v1/auth/reset-password ────────────────────────────────────────────
+
+export const resetPassword = async (req, res) => {
+  // 1) catch token and new password
+  const { token, password } = req.validatedData.body;
+
+  // 2) check reset token pattern
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    throw invalidPasswordResetTokenError();
+  }
+
+  // 3) hash the token to find the user doc with 
+  const passwordResetToken = createHash('sha256')
+    .update(token)
+    .digest('hex');
+  
+  // 4) find the user
+  const user = await User.findOne({
+    isActive: true,
+    passwordResetToken,
+    passwordResetTokenExpiresAt: { $gt: Date.now() }
+  }).select('+password');
+
+  if (!user) throw invalidPasswordResetTokenError();
+
+  // 5) check new password is different than the old one
+  if (await user.comparePassword(password)) {
+    throw new ApiError(
+      'Choose a password you haven’t used before.',
+      400,
+      { code: 'NEW_PASSWORD_SAME_AS_CURRENT' }
+    );
+  }
+
+  // 6) update the password and cleanup the token
+  // we find the document again to make sure
+  // token is not updated by another request.
+  const newPasswordHash = await User.hashPassword(password);
+
+  const updatedUser = await User.findOneAndUpdate(
+    {
+      _id: user._id,
+      isActive: true,
+      password: user.password,
+      passwordResetToken,
+      passwordResetTokenExpiresAt: { $gt: Date.now() }
+    },
+    {
+      $set: {
+        password: newPasswordHash,
+        passwordChangedAt: new Date()
+      },
+      $unset: {
+        passwordResetToken: '',
+        passwordResetTokenExpiresAt: '',
+      }
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!updatedUser) throw invalidPasswordResetTokenError();
+
+  // 7) log the success
+  req.log.info(
+    {
+      event: 'passwordResetCompleted',
+      userId: user._id.toString()
+    },
+    'Password reset completed'
+  );
+
+  // 8) send the response
+  res.status(200).json({
+    status: 'success',
+    message: 'Password reset successfully. Please log in with your new password.'
   });
 };
 

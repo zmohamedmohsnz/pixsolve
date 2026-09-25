@@ -12,3 +12,4 @@ process.env.EMAIL_VERIFICATION_TOKEN_LIFETIME_MINS = '1440';
 process.env.PUBLIC_APP_URL = 'http://localhost:3000';
 process.env.JWT_ACCESS_TOKEN_SECRET = 'test-only-access-token-secret-with-at-least-32-characters';
 process.env.JWT_ACCESS_TOKEN_LIFETIME_MINS = '15';
+process.env.PASSWORD_RESET_TOKEN_LIFETIME_MINS = '60';

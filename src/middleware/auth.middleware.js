@@ -41,10 +41,19 @@ const authenticate = ({ optional }) => async (req, _res, next) => {
   const user = await User.findById(payload.sub);
   if (!user || !user.isActive) throw invalidAccessTokenError();
   
-  // 4) save user in req
+  // 4) check password changed after token was issued
+  if (user.passwordChangedAt && user.passwordChangedAt.getTime() > payload.iat * 1000) {
+    throw new ApiError(
+      'Your password has changed. Please log in again.',
+      401,
+      { code: 'PASSWORD_CHANGED' }
+    );
+  } 
+
+  // 5) save user in req
   req.user = { id: user._id }
 
-  // 5) continue to next middleware
+  // 6) continue to next middleware
   return next();
 };
 
