@@ -107,6 +107,30 @@ export const resetPasswordSchema = z.object({
   query: z.unknown()
 });
 
+export const updatePasswordSchema = z.object({
+  body: z.object({
+    curPassword: stringFieldSchema('Current Password')
+      .max(72, 'Current password must not exceed 72 characters'),
+    newPassword: passwordSchema,
+    confirmPassword: stringFieldSchema('Confirm Password')
+  },
+  {
+    error: customBodyErrorMessage
+  })
+  .strict()
+  .refine(
+    body => body.curPassword !== body.newPassword,
+    { message: 'New password must be different from the current one', path: ['newPassword'] }
+  )
+  .refine(
+    data => data.newPassword === data.confirmPassword,
+    { message: 'Passwords don\'t match', path: ['confirmPassword'] }
+  ),
+
+  params: z.unknown(),
+  query: z.unknown(),
+}).strict();
+
 export const verifyEmailSchema = z.object({
   body: z.object({
     token: z.string().trim().min(1, 'Verification token is required')

@@ -5,7 +5,12 @@ import pino from 'pino';
 import config from '../src/config/env.js';
 import resend from '../src/config/resend.js';
 import ApiError from '../src/errors/api-error.js';
-import { sendEmail } from '../src/services/email-service.js';
+import {
+  sendEmail,
+  sendFailedLoginNotificationEmail,
+  sendPasswordUpdatedNotificationEmail,
+  sendSuccessLoginNotificationEmail
+} from '../src/services/email-service.js';
 
 afterEach(() => {
   mock.restoreAll();
@@ -51,6 +56,38 @@ test('sends one authentication message through the configured provider', async (
     subject: message.subject,
     text: message.text
   }]);
+});
+
+test('escapes request metadata in every notification HTML body', async () => {
+  const sentMessages = [];
+  const metadata = {
+    ip: '127.0.0.1<script>',
+    userAgent: '<img src="x" onerror="alert(\'x\')">&',
+    time: '2026-09-26T12:00:00Z > now'
+  };
+
+  mock.method(resend.emails, 'send', async payload => {
+    sentMessages.push(payload);
+    return { data: { id: 'email-test-id' }, error: null };
+  });
+
+  for (const sendNotification of [
+    sendSuccessLoginNotificationEmail,
+    sendFailedLoginNotificationEmail,
+    sendPasswordUpdatedNotificationEmail
+  ]) {
+    await sendNotification('user@example.com', metadata);
+  }
+
+  assert.equal(sentMessages.length, 3);
+
+  for (const message of sentMessages) {
+    assert.match(message.text, /<img src="x" onerror="alert\('x'\)">&/);
+    assert.match(message.html, /&lt;img src=&quot;x&quot; onerror=&quot;alert\(&#39;x&#39;\)&quot;&gt;&amp;/);
+    assert.doesNotMatch(message.html, /<img src=/);
+    assert.match(message.html, /127\.0\.0\.1&lt;script&gt;/);
+    assert.match(message.html, /2026-09-26T12:00:00Z &gt; now/);
+  }
 });
 
 test('converts a returned Resend error to a sanitized application error', async () => {

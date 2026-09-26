@@ -15,6 +15,13 @@ const deliveryError = (rawError) => new ApiError(
   }
 );
 
+const escapeHtml = value => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+
 // ─── Base Sender Method ─────────────────────────────────────────────────────────
 
 export const sendEmail = async ({ to, subject, text, html }) => {
@@ -111,6 +118,10 @@ export const sendSuccessLoginNotificationEmail = async (to, { ip, userAgent, tim
     "If you didn't log in, please secure your account immediately."
   ].join('\n');
 
+  const escapedIp = escapeHtml(ip);
+  const escapedUserAgent = escapeHtml(userAgent);
+  const escapedTime = escapeHtml(time);
+
   const html = `
   <!DOCTYPE html>
   <html lang="en">
@@ -125,9 +136,9 @@ export const sendSuccessLoginNotificationEmail = async (to, { ip, userAgent, tim
     <p>A new login to your PixSolve account was detected.</p>
 
     <p>
-      <strong>IP address:</strong> ${ip}<br>
-      <strong>Device:</strong> ${userAgent}<br>
-      <strong>Time:</strong> ${time}
+      <strong>IP address:</strong> ${escapedIp}<br>
+      <strong>Device:</strong> ${escapedUserAgent}<br>
+      <strong>Time:</strong> ${escapedTime}
     </p>
 
     <p>If this was you, you can safely ignore this email.</p>
@@ -165,6 +176,10 @@ export const sendFailedLoginNotificationEmail = async (
     "If this wasn't you, we recommend securing your account."
   ].join('\n');
 
+  const escapedIp = escapeHtml(ip);
+  const escapedUserAgent = escapeHtml(userAgent);
+  const escapedTime = escapeHtml(time);
+
   const html = `
   <!DOCTYPE html>
   <html lang="en">
@@ -181,9 +196,9 @@ export const sendFailedLoginNotificationEmail = async (
     </p>
 
     <p>
-      <strong>IP address:</strong> ${ip}<br>
-      <strong>Device:</strong> ${userAgent}<br>
-      <strong>Time:</strong> ${time}
+      <strong>IP address:</strong> ${escapedIp}<br>
+      <strong>Device:</strong> ${escapedUserAgent}<br>
+      <strong>Time:</strong> ${escapedTime}
     </p>
 
     <p>If this was you, you can safely ignore this email.</p>
@@ -249,6 +264,65 @@ export const sendPasswordResetEmail = async (to, resetUrl, expiresIn) => {
   return sendEmail({
     to,
     subject: 'Reset your PixSolve password',
+    text,
+    html
+  });
+};
+
+export const sendPasswordUpdatedNotificationEmail = async (to, { ip, userAgent, time }) => {
+  const text = [
+    'Your PixSolve password was successfully updated.',
+    '',
+    `IP address: ${ip}`,
+    `Device: ${userAgent}`,
+    `Time: ${time}`,
+    '',
+    'If you made this change, no further action is required.',
+    '',
+    "If you didn't change your password, please secure your account immediately."
+  ].join('\n');
+
+  const escapedIp = escapeHtml(ip);
+  const escapedUserAgent = escapeHtml(userAgent);
+  const escapedTime = escapeHtml(time);
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password updated</title>
+  </head>
+  <body>
+    <h2>Password updated</h2>
+
+    <p>
+      Your PixSolve password was successfully updated.
+    </p>
+
+    <p>
+      <strong>IP address:</strong> ${escapedIp}<br>
+      <strong>Device:</strong> ${escapedUserAgent}<br>
+      <strong>Time:</strong> ${escapedTime}
+    </p>
+
+    <p>
+      If you made this change, no further action is required.
+    </p>
+
+    <p>
+      If you didn't change your password, please secure your account immediately.
+    </p>
+
+    <p>— The PixSolve Team</p>
+  </body>
+  </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: 'Your PixSolve password was updated',
     text,
     html
   });

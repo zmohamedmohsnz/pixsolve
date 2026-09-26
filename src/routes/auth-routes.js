@@ -1,11 +1,13 @@
 import express from 'express';
 import validateRequest from '../middleware/validate-request.js';
+import authenticate from '../middleware/authenticate.js';
 import {
   signupSchema,
   loginSchema,
   verifyEmailSchema,
   forgetPasswordSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  updatePasswordSchema
 } from '../validations/auth.js';
 
 import {
@@ -13,7 +15,8 @@ import {
   login,
   verifyEmail,
   forgetPassword,
-  resetPassword
+  resetPassword,
+  updatePassword
 } from '../controllers/auth-controller.js';
 
 const router = new express.Router();
@@ -46,6 +49,13 @@ router.post(
   '/verify-email',
   validateRequest(verifyEmailSchema),
   verifyEmail
+);
+
+router.patch(
+  '/update-password',
+  authenticate({ optional: false }),
+  validateRequest(updatePasswordSchema),
+  updatePassword
 );
 
 export default router;
