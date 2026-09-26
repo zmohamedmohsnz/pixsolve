@@ -18,7 +18,7 @@ const cleanupFailedJobCreation = async ({ jobId, isDocumentCreated, uploadedImag
   const logCleanupFailure = (cleanupTarget, error) => {
     log.error(
       {
-        event: 'guestJobCreationCleanupFailed',
+        event: 'imageProcessingJobCreationCleanupFailed',
         jobId,
         cleanupTarget,
         failure: createSafeError(error)
@@ -62,16 +62,19 @@ const createJobNotFoundError = () => {
 
 // ─── POST api/v1/image-processing/jobs ──────────────────────────────────────────
 
-export const createGuestJob = async (req, res) => {
-  // specify where the error is happened
+export const createJob = async (req, res) => {
+  // to specify where and when the error is happened
   let failureStage;
 
   // define outside `try` because they are used in `catch`
   let inputImage, operation, options, queuedJob;
 
-  // create the jobId manually to make it distinguish the job
+  // create the job id manually to make it distinguish the job
   // during all its stages, not only the database stage.
   const jobId = new mongoose.Types.ObjectId();
+
+  // fetch the user from the request if exists
+  const userId = req.user?.id ?? null;
 
   try {
     // 1) fetch input data
@@ -87,7 +90,7 @@ export const createGuestJob = async (req, res) => {
     // 3) create a job in the database
     const job = new Job({
       _id: jobId,
-      user: null,
+      user: userId,
       operation,
       options,
       inputFile: {
@@ -96,7 +99,7 @@ export const createGuestJob = async (req, res) => {
       }
     });
 
-    const guestAccessToken = job.createGuestAccessToken();
+    const guestAccessToken = userId ? undefined : job.createGuestAccessToken();
     await job.save();
 
     failureStage = 'queue';
@@ -109,31 +112,35 @@ export const createGuestJob = async (req, res) => {
     // 5) log a job is created successfully
     req.log.info(
       {
-        event: 'guestImageProcessingJobCreated',
-        jobId,
+        event: 'imageProcessingJobCreated',
+        jobId: jobId.toString(),
+        userId: userId ? userId.toString() : undefined,
         queuedJobId: queuedJob.id?.toString(),
         operation
       },
-      'A guest image-processing job is created'
+      'image-processing job is created'
     );
 
     failureStage = 'response';
 
     // 6) send the response
+    const responseData = {
+      job: {
+        id: job._id.toString(),
+        operation: job.operation,
+        options: job.options,
+        status: job.status,
+        createdAt: job.createdAt,
+      },
+      ...( !userId && { guestAccessToken })
+    };
+
     res.location(`/api/v1/image-processing/jobs/${job._id}`);
     return res.status(202).json({
       status: 'success',
-      data: {
-        job: {
-          id: jobId,
-          operation: job.operation,
-          options: job.options,
-          status: job.status,
-          createdAt: job.createdAt
-        },
-        guestAccessToken
-      }
+      data: responseData
     });
+
   } catch (error) {
     await cleanupFailedJobCreation({
       jobId,
@@ -145,17 +152,20 @@ export const createGuestJob = async (req, res) => {
 
     req.log.error(
       {
-        event: 'guestImageProcessingJobCreationFailed',
+        event: 'imageProcessingJobCreationFailed',
         jobId: jobId.toString(),
+        userId: userId ? userId.toString() : undefined,
+        creationMode: userId ? 'authenticated' : 'guest',
         operation,
         failureStage,
         failure: createSafeError(error)
       },
-      'Guest image-processing job creation failed'
+      'Image-processing job creation failed'
     );
 
     throw new ApiError(
-      'The job could not be accepted for processing.', 503,
+      'The job could not be accepted for processing.',
+      503,
       { code: 'JOB_CREATION_FAILED' }
     );
   }
