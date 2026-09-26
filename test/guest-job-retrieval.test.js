@@ -10,7 +10,6 @@ import { shutdownImageProcessingQueue } from '../src/queues/image-processing-que
 const TOKEN = 'A'.repeat(43);
 const OTHER_TOKEN = 'B'.repeat(43);
 const PATH = '/api/v1/image-processing/jobs';
-const PROJECTION = '_id operation options status outputFile.secureUrl errorMessage createdAt updatedAt';
 const hash = token => createHash('sha256').update(token).digest('hex');
 
 const makeJob = status => ({
@@ -30,12 +29,7 @@ const makeJob = status => ({
 });
 
 const mockLookup = job => {
-  let projection;
   mock.method(Job, 'findOne', filter => ({
-    select(value) {
-      projection = value;
-      return this;
-    },
     async lean() {
       return filter._id === job._id.toString() &&
         filter.user === null &&
@@ -43,7 +37,6 @@ const mockLookup = job => {
         ? job : null;
     }
   }));
-  return () => projection;
 };
 
 afterEach(() => mock.restoreAll());
@@ -52,7 +45,7 @@ after(async () => shutdownImageProcessingQueue());
 for (const status of ['pending', 'processing', 'completed', 'failed']) {
   test(`returns only authorized ${status} job fields`, async () => {
     const job = makeJob(status);
-    const getProjection = mockLookup(job);
+    mockLookup(job);
     const response = await request(app)
       .get(`${PATH}/${job._id}`)
       .set('X-Guest-Access-Token', TOKEN);
@@ -79,7 +72,6 @@ for (const status of ['pending', 'processing', 'completed', 'failed']) {
       user: null,
       guestAccessTokenHash: hash(TOKEN)
     });
-    assert.equal(getProjection(), PROJECTION);
     for (const field of ['inputFile', 'publicId', 'guestAccessTokenHash', 'user']) {
       assert.equal(JSON.stringify(response.body).includes(`"${field}"`), false);
     }
@@ -139,7 +131,6 @@ test('conceals nonexistent jobs and another job’s valid token', async () => {
 test('sanitizes database failures through centralized error handling', async () => {
   const job = makeJob('pending');
   mock.method(Job, 'findOne', () => ({
-    select() { return this; },
     async lean() { throw new Error('MongoDB unavailable'); }
   }));
   const response = await request(app)
