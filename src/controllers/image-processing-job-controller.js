@@ -60,6 +60,27 @@ const createJobNotFoundError = () => {
   );
 };
 
+const toSafeJob = job => {
+  const responseJob = {
+    id: job._id.toString(),
+    operation: job.operation,
+    options: job.options,
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  };
+
+  if (job.status === 'completed') {
+    responseJob.result = { downloadUrl: job.outputFile.secureUrl };
+  }
+
+  if (job.status === 'failed') {
+    responseJob.error = { message: job.errorMessage };
+  }
+
+  return responseJob;
+};
+
 // ─── POST api/v1/image-processing/jobs ──────────────────────────────────────────
 
 export const createJob = async (req, res) => {
@@ -231,25 +252,42 @@ export const getJob = async (req, res) => {
   }
 
   // 4) return the response
-  const responseJob = {
-    id: job._id.toString(),
-    operation: job.operation,
-    options: job.options,
-    status: job.status,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-  };
-
-  if (job.status === 'completed') {
-    responseJob.result = { downloadUrl: job.outputFile.secureUrl };
-  }
-
-  if (job.status === 'failed') {
-    responseJob.error = { message: job.errorMessage };
-  }
-
   return res.status(200).json({
     status: 'success',
-    data: { job: responseJob }
+    data: { job: toSafeJob(job) }
+  });
+};
+
+// ─── GET api/v1/image-processing/jobs ───────────────────────────────────────────
+
+export const listJobs = async (req, res) => {
+  // fetch the requested page and limit
+  const { page, limit } = req.validatedData.query;
+  const skip = (page - 1) * limit;
+
+  // fetch the current user id
+  const userId = req.user.id;
+
+  // fetch the jobs and their count
+  const jobs = await Job.find({ user: req.user.id })
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+  
+  const jobsCount = await Job.countDocuments({ user: userId });
+
+  // return the response
+  return res.status(200).json({
+    status: 'success',
+    data: {
+      jobs: jobs.map(toSafeJob),
+      pagination: {
+        page,
+        limit,
+        total: jobsCount,
+        totalPages: Math.ceil(jobsCount / limit)
+      }
+    }
   });
 };

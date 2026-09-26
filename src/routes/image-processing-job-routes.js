@@ -3,8 +3,11 @@ import { parseImageUpload } from '../middleware/parse-image-upload.js';
 import { validateImageUpload } from '../middleware/validate-image-upload.js';
 import validateRequest from '../middleware/validate-request.js';
 import authenticate from '../middleware/authenticate.js';
-import { imageProcessingRequestSchema } from '../validations/image-processing-job.js';
-import { createJob, getJob } from '../controllers/image-processing-job-controller.js';
+import { 
+  imageProcessingRequestSchema,
+  getImageProcessingJobsHistorySchema
+} from '../validations/image-processing-job.js';
+import { createJob, getJob, listJobs } from '../controllers/image-processing-job-controller.js';
 
 const router = express.Router();
 
@@ -15,6 +18,13 @@ router.post(
   validateImageUpload,
   validateRequest(imageProcessingRequestSchema),
   createJob
+);
+
+router.get(
+  '/',
+  authenticate({ optional: false }),
+  validateRequest(getImageProcessingJobsHistorySchema),
+  listJobs
 );
 
 router.get(
