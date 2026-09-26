@@ -7,7 +7,8 @@ import {
   sendVerificationEmail,
   sendSuccessLoginNotificationEmail,
   sendFailedLoginNotificationEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendPasswordUpdatedNotificationEmail
 } from '../services/email-service.js';
 import ApiError from '../errors/api-error.js';
 import config from '../config/env.js';
@@ -24,6 +25,12 @@ const invalidPasswordResetTokenError = () => new ApiError(
   'Password reset token is invalid or has expired.',
   400,
   { code: 'INVALID_PASSWORD_RESET_TOKEN' }
+);
+
+const invalidCurrentPasswordError = () => new ApiError(
+  'Current password is incorrect.',
+  401,
+  { code: 'INVALID_CURRENT_PASSWORD' }
 );
 
 const createSendVerificationEmail = async (req, user) => {
@@ -332,6 +339,71 @@ export const resetPassword = async (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Password reset successfully. Please log in with your new password.'
+  });
+};
+
+// ─── PATCH api/v1/auth/update-password ───────────────────────────────────────────
+
+export const updatePassword = async (req, res) => {
+  // 1) fetch the passwords
+  const { curPassword, newPassword } = req.validatedData.body;
+
+  // 2) check current password is correct
+  const user = await User.findById(req.user.id).select('+password');
+  if (!user || !user.isActive || !(await user.comparePassword(curPassword))) {
+    throw invalidCurrentPasswordError();
+  }
+
+  // 2) fetch the user again and update password
+  const updatedUser = await User.findOneAndUpdate(
+    {
+      _id: req.user.id,
+      isActive: true,
+      password: user.password
+    },
+    {
+      password: await User.hashPassword(newPassword),
+      passwordChangedAt: new Date()
+    },
+    {
+      new: true
+    }
+  ).select('+password');
+
+  if (!updatedUser) {
+    throw invalidCurrentPasswordError();
+  }
+
+  // 3) log the success
+  req.log.info(
+    {
+      event: 'passwordUpdated',
+      userId: updatedUser._id.toString()
+    },
+    'Password updated successfully'
+  );
+
+  // 4) send a success email
+  try {
+    await sendPasswordUpdatedNotificationEmail(updatedUser?.email, {
+      ip: req?.ip || 'unknown',
+      userAgent: req?.headers['user-agent'] || 'unknown',
+      time: new Date().toUTCString()
+    });
+  } catch (error) {
+    req.log.error(
+      {
+        event: 'sendEmailPasswordUpdatedNotificationFailed',
+        error: error
+      },
+      'Email service failed to send the password update notification email'
+    );
+  }
+
+  // 8) send the response
+  res.status(200).json({
+    status: 'success',
+    message: 'Password updated successfully. Please login again.',
   });
 };
 

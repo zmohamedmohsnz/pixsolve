@@ -8,7 +8,7 @@ import app from '../src/app.js';
 import config from '../src/config/env.js';
 import User from '../src/models/user.js';
 import resend from '../src/config/resend.js';
-import authenticate from '../src/middleware/auth.middleware.js';
+import authenticate from '../src/middleware/authenticate.js';
 import errorHandler from '../src/middleware/handle-errors.js';
 import {
   shutdownImageProcessingQueue
