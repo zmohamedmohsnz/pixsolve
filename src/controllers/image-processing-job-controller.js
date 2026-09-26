@@ -171,45 +171,60 @@ export const createJob = async (req, res) => {
   }
 };
 
-// ─── GET api/v1/image-processing/jobs ───────────────────────────────────────────
+// ─── GET api/v1/image-processing/jobs:id ────────────────────────────────────────
 
-export const getGuestJob = async (req, res) => {
-  // 1) fetch the access token and the job id
+export const getJob = async (req, res) => {
+  // 1) fetch job id, guest access token, and user id
   const guestAccessToken = req.get('X-Guest-Access-Token');
   const jobId = req.params.id;
+  const userId = req.user?.id ?? null;
 
-  if (typeof guestAccessToken !== 'string' || guestAccessToken.trim() === '') {
-    throw new ApiError(
-      'Guest access token is required.',
-      401,
-      { code: 'GUEST_ACCESS_TOKEN_REQUIRED' }
-    );
-  }
-
-  // 2) validate the access token and the job ID formats before
-  // trying to find the document because invalid job ID format
-  // may cause `CastError`, but we wanna just return `null`,
-  // and for the token, we reject the obviously malformed input early
-  // instead of unnecessarily hashing it and querying the database. 
-  const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
-  if (!mongoose.isObjectIdOrHexString(jobId) || !tokenPattern.test(guestAccessToken)) {
+  // 2) quick check for the job id format
+  // we check the job ID format because invalid job ID format
+  // may cause `CastError`, but we wanna throw another error.
+  if (!mongoose.isObjectIdOrHexString(jobId)) {
     throw createJobNotFoundError();
   }
 
-  // 3) try to fetch the job from the database
-  const guestAccessTokenHash = createHash('sha256')
-    .update(guestAccessToken)
-    .digest('hex');
+  // 3) fetch the job
+  let job;
 
-  const job = await Job.findOne({
-    _id: jobId,
-    user: null,
-    guestAccessTokenHash
-  })
-    .select('_id operation options status outputFile.secureUrl ' + 
-      'errorMessage createdAt updatedAt'
-    )
-    .lean();
+  // if the user is authenticated
+  if (userId) {
+    job = await Job.findOne({
+      _id: jobId,
+      user: userId
+    }).lean();
+
+  // if the user is a guest
+  } else {
+    // check access token is passed
+    if (typeof guestAccessToken !== 'string' || guestAccessToken.trim() === '') {
+      throw new ApiError(
+        'Guest access token is required.',
+        401,
+        { code: 'GUEST_ACCESS_TOKEN_REQUIRED' }
+      );
+    }
+
+    // validate the access token format. we reject the obviously malformed
+    // input early instead of unnecessarily hashing it and querying the db.
+    if (!/^[A-Za-z0-9_-]{43}$/.test(guestAccessToken)) {
+      throw createJobNotFoundError();
+    }
+
+    // hash the token
+    const guestAccessTokenHash = createHash('sha256')
+      .update(guestAccessToken)
+      .digest('hex');
+
+    // find the job from db
+    job = await Job.findOne({
+      _id: jobId,
+      user: null,
+      guestAccessTokenHash
+    }).lean();
+  }
 
   if (!job) {
     throw createJobNotFoundError();
@@ -222,7 +237,7 @@ export const getGuestJob = async (req, res) => {
     options: job.options,
     status: job.status,
     createdAt: job.createdAt,
-    updatedAt: job.updatedAt
+    updatedAt: job.updatedAt,
   };
 
   if (job.status === 'completed') {
