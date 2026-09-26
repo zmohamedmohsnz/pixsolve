@@ -67,6 +67,9 @@ export const loginSchema = z.object({
     email: emailSchema,
     password: stringFieldSchema('Password')
       .max(72, 'Password must not exceed 72 characters')
+  },
+  {
+    error: customBodyErrorMessage
   }).strict(),
 
   query: z.unknown(),
@@ -76,6 +79,9 @@ export const loginSchema = z.object({
 export const forgetPasswordSchema = z.object({
   body: z.object({
     email: emailSchema
+  },
+  {
+    error: customBodyErrorMessage
   }).strict(),
 
   params: z.unknown(),
@@ -87,6 +93,9 @@ export const resetPasswordSchema = z.object({
     token: z.string().trim().min(1, 'Reset token is required'),
     password: passwordSchema,
     confirmPassword: stringFieldSchema('Confirm Password')
+  },
+  {
+    error: customBodyErrorMessage
   })
   .strict()
   .refine(
@@ -101,6 +110,9 @@ export const resetPasswordSchema = z.object({
 export const verifyEmailSchema = z.object({
   body: z.object({
     token: z.string().trim().min(1, 'Verification token is required')
+  },
+  {
+    error: customBodyErrorMessage
   }).strict(),
   params: z.unknown(),
   query: z.unknown()
