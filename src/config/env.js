@@ -103,6 +103,14 @@ const envSchema = z.object({
         .transform(value => value.replace(/\/+$/, ''))
       ).min(1)
     ),
+  
+  AUTH_RATE_LIMIT_WINDOW_MINS: z.coerce.number()
+    .int('AUTH_RATE_LIMIT_WINDOW_MINS must be an integer')
+    .min(1, 'AUTH_RATE_LIMIT_WINDOW_MINS must be at least 1'),
+
+  AUTH_RATE_LIMIT_MAX_REQUESTS: z.coerce.number()
+    .int('AUTH_RATE_LIMIT_MAX_REQUESTS must be an integer')
+    .min(1, 'AUTH_RATE_LIMIT_MAX_REQUESTS must be at least 1'),
 });
 
 // ─── Validate Env Variables ─────────────────────────────────────────────────────
@@ -144,6 +152,12 @@ const config = Object.freeze({
   }),
   passwordResetTokenLifeTimeMins: result.data.PASSWORD_RESET_TOKEN_LIFETIME_MINS,
   allowedOrigins: Object.freeze(result.data.ALLOWED_ORIGINS),
+  rateLimit: Object.freeze({
+    auth: Object.freeze({
+      windowMins: result.data.AUTH_RATE_LIMIT_WINDOW_MINS,
+      maxRequests: result.data.AUTH_RATE_LIMIT_MAX_REQUESTS
+    })
+  })
 });
 
 export default config;

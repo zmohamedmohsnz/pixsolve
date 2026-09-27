@@ -14,3 +14,5 @@ process.env.JWT_ACCESS_TOKEN_SECRET = 'test-only-access-token-secret-with-at-lea
 process.env.JWT_ACCESS_TOKEN_LIFETIME_MINS = '15';
 process.env.PASSWORD_RESET_TOKEN_LIFETIME_MINS = '60';
 process.env.ALLOWED_ORIGINS = `http://localhost:5173`;
+process.env.AUTH_RATE_LIMIT_WINDOW_MINS = 15;
+process.env.AUTH_RATE_LIMIT_MAX_REQUESTS = 5;

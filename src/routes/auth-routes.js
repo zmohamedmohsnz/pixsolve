@@ -1,6 +1,7 @@
 import express from 'express';
 import validateRequest from '../middleware/validate-request.js';
 import authenticate from '../middleware/authenticate.js';
+import { authRateLimiter } from '../middleware/rate-limit.js';
 import {
   signupSchema,
   loginSchema,
@@ -20,6 +21,8 @@ import {
 } from '../controllers/auth-controller.js';
 
 const router = new express.Router();
+
+router.use(authRateLimiter);
 
 router.post(
   '/signup',
