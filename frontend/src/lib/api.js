@@ -12,10 +12,11 @@ export class ApiError extends Error {
 }
 
 export const apiRequest = async (path, options = {}) => {
+  const { returnPayload = false, ...requestOptions } = options;
   let response;
 
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, options);
+    response = await fetch(`${apiBaseUrl}${path}`, requestOptions);
   } catch {
     throw new ApiError('Unable to reach Pixsolve. Check your connection and try again.', {
       isNetwork: true
@@ -37,5 +38,5 @@ export const apiRequest = async (path, options = {}) => {
     });
   }
 
-  return payload?.data;
+  return returnPayload ? payload : payload?.data;
 };
