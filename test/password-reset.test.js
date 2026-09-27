@@ -101,7 +101,7 @@ test('returns the same response for registered and unknown forgot-password email
   );
   const rawToken = resetUrl.searchParams.get('token');
 
-  assert.equal(resetUrl.origin, 'http://localhost:3000');
+  assert.equal(resetUrl.origin, 'http://localhost:5173');
   assert.equal(resetUrl.pathname, '/reset-password');
   assert.match(rawToken, /^[A-Za-z0-9_-]{43}$/);
   assert.equal(resetUrl.searchParams.size, 1);

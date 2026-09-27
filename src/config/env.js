@@ -80,6 +80,29 @@ const envSchema = z.object({
   PASSWORD_RESET_TOKEN_LIFETIME_MINS: z.coerce.number()
     .int('JWT_ACCESS_TOKEN_LIFETIME_MINS must be an integer')
     .min(1, 'JWT_ACCESS_TOKEN_LIFETIME_MINS is required'),
+
+  ALLOWED_ORIGINS: z.string()
+    .trim()
+    .min(1, 'ALLOWED_ORIGINS is required')
+    .transform(value => value.split(',').map(origin => origin.trim()))
+    .pipe(
+      z.array(
+        z.url({
+          protocol: /^https?$/,
+          hostname: /^.+$/,
+          error: 'Each ALLOWED_ORIGINS value must be a valid http:// or https:// URL'
+        })
+        .refine(value => {
+          const url = new URL(value);
+
+          return url.pathname === '/' &&
+            url.search === '' &&
+            url.hash === '';
+        }, 'Each ALLOWED_ORIGINS value must be an origin without a path, query, or fragment'
+        )
+        .transform(value => value.replace(/\/+$/, ''))
+      ).min(1)
+    ),
 });
 
 // ─── Validate Env Variables ─────────────────────────────────────────────────────
@@ -119,7 +142,8 @@ const config = Object.freeze({
     accessTokenSecret: result.data.JWT_ACCESS_TOKEN_SECRET,
     accessTokenLifetimeMins: result.data.JWT_ACCESS_TOKEN_LIFETIME_MINS
   }),
-  passwordResetTokenLifeTimeMins: result.data.PASSWORD_RESET_TOKEN_LIFETIME_MINS
+  passwordResetTokenLifeTimeMins: result.data.PASSWORD_RESET_TOKEN_LIFETIME_MINS,
+  allowedOrigins: Object.freeze(result.data.ALLOWED_ORIGINS),
 });
 
 export default config;

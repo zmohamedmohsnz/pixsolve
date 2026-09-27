@@ -17,6 +17,50 @@ test('GET /health returns HTTP 200 and correct response body', async () => {
   assert.deepEqual(response.body, { status: 'ok' });
 });
 
+test('allows the configured frontend origin to read API responses', async () => {
+  const response = await request(app)
+    .get('/health')
+    .set('Origin', 'http://localhost:5173');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers['access-control-allow-origin'], 'http://localhost:5173');
+  assert.equal(response.headers.vary, 'Origin');
+});
+
+test('does not grant an unconfigured origin browser access to API responses', async () => {
+  const response = await request(app)
+    .get('/health')
+    .set('Origin', 'https://untrusted.example');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers['access-control-allow-origin'], undefined);
+  assert.equal(response.headers.vary, 'Origin');
+});
+
+test('handles CORS preflight for the configured frontend origin', async () => {
+  const response = await request(app)
+    .options('/api/v1/auth/login')
+    .set('Origin', 'http://localhost:5173')
+    .set('Access-Control-Request-Method', 'POST')
+    .set('Access-Control-Request-Headers', 'authorization, content-type');
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers['access-control-allow-origin'], 'http://localhost:5173');
+  assert.match(response.headers['access-control-allow-methods'], /POST/);
+  assert.equal(response.headers['access-control-allow-headers'], 'authorization, content-type');
+  assert.equal(response.headers.vary, 'Origin, Access-Control-Request-Headers');
+});
+
+test('does not grant an unconfigured origin browser access during preflight', async () => {
+  const response = await request(app)
+    .options('/api/v1/auth/login')
+    .set('Origin', 'https://untrusted.example')
+    .set('Access-Control-Request-Method', 'POST');
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers['access-control-allow-origin'], undefined);
+});
+
 test('undefined route returns the standard not-found response', async () => {
   const response = await request(app).get('/undefined-route');
   

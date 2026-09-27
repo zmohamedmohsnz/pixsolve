@@ -2,9 +2,11 @@
 
 import express from 'express';
 import helmet from 'helmet';
+import cors from 'cors';
 import errorHandler from './middleware/handle-errors.js';
 import ApiError from './errors/api-error.js';
 import requestLogger from './middleware/log-request.js';
+import corsOptions from './config/cors.js';
 import authRouter from './routes/auth-routes.js'
 import imageProcessingjobRouter from './routes/image-processing-job-routes.js';
 
@@ -13,6 +15,10 @@ import imageProcessingjobRouter from './routes/image-processing-job-routes.js';
 const app = express();
 
 // ─── GLOBAL MIDDLEWARE ──────────────────────────────────────────────────────────
+
+// tells browser which origins are allowed to read responses
+// from our API by setting some HTTP response headers.
+app.use(cors(corsOptions));
 
 // capture every request and its response
 app.use(requestLogger);

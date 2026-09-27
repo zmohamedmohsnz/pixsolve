@@ -61,7 +61,7 @@ test('creates an unverified User and requests one verification email', async () 
   const verificationUrl = new URL(
     sentMessages[0].text.match(/Verify your email: (\S+)/)[1]
   );
-  assert.equal(verificationUrl.origin, 'http://localhost:3000');
+  assert.equal(verificationUrl.origin, 'http://localhost:5173');
   assert.equal(verificationUrl.pathname, '/verify-email');
   assert.match(verificationUrl.searchParams.get('token'), /^[A-Za-z0-9_-]{43}$/);
   assert.equal(verificationUrl.hash, '');
