@@ -1,0 +1,1474 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PixSolve API",
+    "version": "1.0.0",
+    "description": "PixSolve V1 image-processing API. Authentication is optional when creating or retrieving a job, but an explicitly supplied invalid Authorization header is always rejected. Swagger UI is available at `/api/v1/docs/`; this document is available at `/api/v1/openapi.json`."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current PixSolve server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Account creation, email verification, login, and password flows."
+    },
+    {
+      "name": "Image Processing Jobs",
+      "description": "Asynchronous image-processing job creation, retrieval, and account Processing History."
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/signup": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Create an account and request email verification",
+        "operationId": "signup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              },
+              "example": {
+                "name": "Ada Lovelace",
+                "email": "ada@example.test",
+                "password": "StrongPass1!",
+                "confirmPassword": "StrongPass1!"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created. The user must verify their email before logging in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Account created. Please check your email to get verified before login"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/DuplicateEmail"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/EmailDeliveryFailed"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Log in and receive a JWT access token",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "ada@example.test",
+                "password": "StrongPass1!"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login succeeded. The response includes `Cache-Control: no-store` and `Pragma: no-cache`.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              },
+              "Pragma": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-cache"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginSuccessResponse"
+                },
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "accessToken": "example-access-token-not-a-real-credential",
+                    "tokenType": "Bearer",
+                    "expiresIn": 900
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidCredentials"
+          },
+          "403": {
+            "description": "The account is unverified or inactive.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "emailNotVerified": {
+                    "value": {
+                      "status": "error",
+                      "code": "EMAIL_NOT_VERIFIED",
+                      "message": "Account is not verified. A new verification link has been sent to your inbox."
+                    }
+                  },
+                  "accountInactive": {
+                    "value": {
+                      "status": "error",
+                      "code": "ACCOUNT_INACTIVE",
+                      "message": "Account is inactive. Please contact support."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/EmailDeliveryFailed"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Verify an email address",
+        "operationId": "verifyEmail",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationTokenRequest"
+              },
+              "example": {
+                "token": "token-from-verification-email"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Email verified successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidVerificationToken"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Request a password-reset email",
+        "operationId": "forgotPassword",
+        "description": "Returns the same success response for active, inactive, and unknown accounts.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              },
+              "example": {
+                "email": "ada@example.test"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request was accepted without revealing whether the email belongs to an active account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "status": "success",
+                  "message": "a password-reset link has been sent to your email"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/EmailDeliveryFailed"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "patch": {
+        "tags": ["Authentication"],
+        "summary": "Reset a password with a reset token",
+        "operationId": "resetPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              },
+              "example": {
+                "token": "token-from-password-reset-email",
+                "password": "NewStrongPass1!",
+                "confirmPassword": "NewStrongPass1!"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Password reset successfully. Please log in with your new password."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The reset token is invalid, expired, already used, or the new password matches the current password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidToken": {
+                    "value": {
+                      "status": "error",
+                      "code": "INVALID_PASSWORD_RESET_TOKEN",
+                      "message": "Password reset token is invalid or has expired."
+                    }
+                  },
+                  "samePassword": {
+                    "value": {
+                      "status": "error",
+                      "code": "NEW_PASSWORD_SAME_AS_CURRENT",
+                      "message": "Choose a password you haven’t used before."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/update-password": {
+      "patch": {
+        "tags": ["Authentication"],
+        "summary": "Update the authenticated user password",
+        "operationId": "updatePassword",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePasswordRequest"
+              },
+              "example": {
+                "curPassword": "CurrentPass1!",
+                "newPassword": "NewStrongPass1!",
+                "confirmPassword": "NewStrongPass1!"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated. Earlier access tokens are rejected and the user must log in again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Password updated successfully. Please login again."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid, the token predates a password change, or the current password is incorrect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "authenticationRequired": {
+                    "value": {
+                      "status": "error",
+                      "code": "AUTHENTICATION_REQUIRED",
+                      "message": "Authentication required. Please login to continue."
+                    }
+                  },
+                  "invalidCurrentPassword": {
+                    "value": {
+                      "status": "error",
+                      "code": "INVALID_CURRENT_PASSWORD",
+                      "message": "Current password is incorrect."
+                    }
+                  },
+                  "passwordChanged": {
+                    "value": {
+                      "status": "error",
+                      "code": "PASSWORD_CHANGED",
+                      "message": "Your password has changed. Please log in again."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/image-processing/jobs": {
+      "post": {
+        "tags": ["Image Processing Jobs"],
+        "summary": "Create an asynchronous image-processing job",
+        "operationId": "createImageProcessingJob",
+        "description": "Authentication is optional. Send no Authorization header to create a guest job. If an Authorization header is supplied, it must contain a valid JWT; malformed, expired, or otherwise invalid supplied credentials are rejected rather than treated as guest access. The request is accepted only after original-image storage, MongoDB persistence, and queue enqueueing succeed.\n\n`options` is a JSON-encoded text field, not a nested multipart object. Valid examples:\n\n- Resize: `{\"width\":800,\"height\":600}`\n- Compress: `{\"quality\":70}`\n- Convert: `{\"format\":\"webp\"}`",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobMultipartRequest"
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "image/jpeg, image/png, image/webp"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The job was accepted asynchronously in `pending` status. `Location` points to its retrieval endpoint. Guest requests receive the one-time `guestAccessToken`; authenticated requests omit it.",
+            "headers": {
+              "Location": {
+                "description": "Relative URI of the newly accepted job.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "example": "/api/v1/image-processing/jobs/507f1f77bcf86cd799439011"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateJobSuccessResponse"
+                },
+                "examples": {
+                  "guestJob": {
+                    "summary": "Guest acceptance",
+                    "value": {
+                      "status": "success",
+                      "data": {
+                        "job": {
+                          "id": "507f1f77bcf86cd799439011",
+                          "operation": "resize",
+                          "options": {
+                            "width": 800,
+                            "height": 600
+                          },
+                          "status": "pending",
+                          "createdAt": "2026-09-27T10:00:00.000Z"
+                        },
+                        "guestAccessToken": "example-guest-access-token-not-a-real-credential"
+                      }
+                    }
+                  },
+                  "authenticatedJob": {
+                    "summary": "Authenticated acceptance",
+                    "value": {
+                      "status": "success",
+                      "data": {
+                        "job": {
+                          "id": "507f1f77bcf86cd799439011",
+                          "operation": "convert",
+                          "options": {
+                            "format": "webp"
+                          },
+                          "status": "pending",
+                          "createdAt": "2026-09-27T10:00:00.000Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidMultipartUpload"
+          },
+          "401": {
+            "$ref": "#/components/responses/OptionalAuthenticationRejected"
+          },
+          "413": {
+            "$ref": "#/components/responses/ImageTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedImageType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "503": {
+            "$ref": "#/components/responses/JobCreationFailed"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Image Processing Jobs"],
+        "summary": "Get authenticated Processing History",
+        "operationId": "listImageProcessingJobs",
+        "description": "Returns only jobs owned by the authenticated user. Guest jobs are never included. Results are ordered by `createdAt` descending, then `_id` descending.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Positive integer from 1 through 50. Defaults to 1.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Positive integer from 1 through 50. Defaults to 10.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processing History. Empty histories and pages beyond available results return `jobs: []` successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessingHistoryResponse"
+                },
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "jobs": [],
+                    "pagination": {
+                      "page": 1,
+                      "limit": 10,
+                      "total": 0,
+                      "totalPages": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/RequiredAuthenticationRejected"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/image-processing/jobs/{id}": {
+      "get": {
+        "tags": ["Image Processing Jobs"],
+        "summary": "Retrieve one image-processing job",
+        "operationId": "getImageProcessingJob",
+        "description": "Credential precedence applies. If an Authorization header is supplied, it must be a valid JWT and retrieval is limited to jobs owned by that user. A simultaneously supplied guest token is ignored; invalid JWT credentials never fall back to guest access. Without Authorization, the `X-Guest-Access-Token` header is required and retrieves only guest jobs. Job IDs alone never grant access.\n\nEvery successful response uses one of four status representations: `pending`, `processing`, `completed`, or `failed`. Pending and processing jobs have no result or error. Completed jobs expose `result.downloadUrl`, an existing Cloudinary default delivery URL. It is not a PixSolve download proxy, authenticated file-delivery guarantee, or guarantee that the URL remains available. Failed jobs expose only `error.message`.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "GuestAccessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safe job representation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetJobSuccessResponse"
+                },
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "status": "success",
+                      "data": {
+                        "job": {
+                          "id": "507f1f77bcf86cd799439011",
+                          "operation": "resize",
+                          "options": {
+                            "width": 800,
+                            "height": 600
+                          },
+                          "status": "pending",
+                          "createdAt": "2026-09-27T10:00:00.000Z",
+                          "updatedAt": "2026-09-27T10:00:00.000Z"
+                        }
+                      }
+                    }
+                  },
+                  "processing": {
+                    "value": {
+                      "status": "success",
+                      "data": {
+                        "job": {
+                          "id": "507f1f77bcf86cd799439011",
+                          "operation": "compress",
+                          "options": {
+                            "quality": 70
+                          },
+                          "status": "processing",
+                          "createdAt": "2026-09-27T10:00:00.000Z",
+                          "updatedAt": "2026-09-27T10:00:03.000Z"
+                        }
+                      }
+                    }
+                  },
+                  "completed": {
+                    "value": {
+                      "status": "success",
+                      "data": {
+                        "job": {
+                          "id": "507f1f77bcf86cd799439011",
+                          "operation": "convert",
+                          "options": {
+                            "format": "webp"
+                          },
+                          "status": "completed",
+                          "createdAt": "2026-09-27T10:00:00.000Z",
+                          "updatedAt": "2026-09-27T10:00:05.000Z",
+                          "result": {
+                            "downloadUrl": "https://res.cloudinary.com/example/image/upload/pixsolve/processed/example.webp"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "failed": {
+                    "value": {
+                      "status": "success",
+                      "data": {
+                        "job": {
+                          "id": "507f1f77bcf86cd799439011",
+                          "operation": "resize",
+                          "options": {
+                            "width": 800,
+                            "height": 600
+                          },
+                          "status": "failed",
+                          "createdAt": "2026-09-27T10:00:00.000Z",
+                          "updatedAt": "2026-09-27T10:00:05.000Z",
+                          "error": {
+                            "message": "Image processing failed."
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing guest credential or invalid supplied JWT. A supplied JWT that predates a password change is also rejected; it never falls back to guest access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "guestTokenRequired": {
+                    "value": {
+                      "status": "error",
+                      "code": "GUEST_ACCESS_TOKEN_REQUIRED",
+                      "message": "Guest access token is required."
+                    }
+                  },
+                  "invalidAccessToken": {
+                    "value": {
+                      "status": "error",
+                      "code": "INVALID_ACCESS_TOKEN",
+                      "message": "Access token is invalid or expired"
+                    }
+                  },
+                  "passwordChanged": {
+                    "value": {
+                      "status": "error",
+                      "code": "PASSWORD_CHANGED",
+                      "message": "Your password has changed. Please log in again."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/JobNotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Use an HS256 PixSolve access token from login. Send exactly `Authorization: Bearer <token>`."
+      },
+      "GuestAccessToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Guest-Access-Token",
+        "description": "One-time credential returned only when a guest job is accepted. Keep it client-side; PixSolve does not return it again."
+      }
+    },
+    "parameters": {
+      "JobId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "MongoDB ObjectId returned when the job was accepted.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{24}$",
+          "example": "507f1f77bcf86cd799439011"
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Request validation failed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "VALIDATION_ERROR",
+              "message": "Validation Error",
+              "details": {
+                "fields": [
+                  {
+                    "source": "body",
+                    "field": "email",
+                    "message": "Email is invalid"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "RequiredAuthenticationRejected": {
+        "description": "A required JWT is absent, invalid, or predates a password change.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "authenticationRequired": {
+                "value": {
+                  "status": "error",
+                  "code": "AUTHENTICATION_REQUIRED",
+                  "message": "Authentication required. Please login to continue."
+                }
+              },
+              "invalidAccessToken": {
+                "value": {
+                  "status": "error",
+                  "code": "INVALID_ACCESS_TOKEN",
+                  "message": "Access token is invalid or expired"
+                }
+              },
+              "passwordChanged": {
+                "value": {
+                  "status": "error",
+                  "code": "PASSWORD_CHANGED",
+                  "message": "Your password has changed. Please log in again."
+                }
+              }
+            }
+          }
+        }
+      },
+      "InvalidAccessToken": {
+        "description": "A supplied JWT is malformed, invalid, expired, or belongs to an inactive or missing user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "INVALID_ACCESS_TOKEN",
+              "message": "Access token is invalid or expired"
+            }
+          }
+        }
+      },
+      "OptionalAuthenticationRejected": {
+        "description": "An Authorization header was supplied to an optional-authentication endpoint but its JWT is invalid or predates a password change. The request is rejected rather than treated as guest access.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "invalidAccessToken": {
+                "value": {
+                  "status": "error",
+                  "code": "INVALID_ACCESS_TOKEN",
+                  "message": "Access token is invalid or expired"
+                }
+              },
+              "passwordChanged": {
+                "value": {
+                  "status": "error",
+                  "code": "PASSWORD_CHANGED",
+                  "message": "Your password has changed. Please log in again."
+                }
+              }
+            }
+          }
+        }
+      },
+      "InvalidCredentials": {
+        "description": "Email or password is incorrect.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "INVALID_CREDENTIALS",
+              "message": "Invalid email or password."
+            }
+          }
+        }
+      },
+      "InvalidVerificationToken": {
+        "description": "Verification token is malformed, invalid, expired, or already used.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "INVALID_TOKEN",
+              "message": "Token is invalid or has expired"
+            }
+          }
+        }
+      },
+      "DuplicateEmail": {
+        "description": "An account already uses the submitted email.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "DUPLICATE_VALUE",
+              "message": "A resource with that value already exists",
+              "details": {
+                "fields": ["email"]
+              }
+            }
+          }
+        }
+      },
+      "EmailDeliveryFailed": {
+        "description": "Authentication email delivery failed with a sanitized response.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "EMAIL_DELIVERY_FAILED",
+              "message": "This email could not be sent."
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "The shared authentication IP rate limit was exceeded.",
+        "headers": {
+          "RateLimit": {
+            "description": "Modern rate-limit information.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "Retry-After": {
+            "description": "Seconds until another request may be attempted.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "TOO_MANY_REQUESTS",
+              "message": "Too many requests. Please try again later."
+            }
+          }
+        }
+      },
+      "InvalidMultipartUpload": {
+        "description": "The multipart request omitted `image`, supplied more than one file, or used an unexpected file field.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "imageRequired": {
+                "value": {
+                  "status": "error",
+                  "code": "IMAGE_REQUIRED",
+                  "message": "An image file is required"
+                }
+              },
+              "unexpectedFile": {
+                "value": {
+                  "status": "error",
+                  "code": "LIMIT_UNEXPECTED_FILE",
+                  "message": "Only one file is allowed, using the \"image\" field."
+                }
+              }
+            }
+          }
+        }
+      },
+      "ImageTooLarge": {
+        "description": "The uploaded file exceeds 5 MB.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "IMAGE_TOO_LARGE",
+              "message": "Image must not be larger than 5 MB."
+            }
+          }
+        }
+      },
+      "UnsupportedImageType": {
+        "description": "The uploaded bytes are not JPEG, PNG, or WebP.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "UNSUPPORTED_IMAGE_TYPE",
+              "message": "Only JPEG, PNG, and WebP images are supported."
+            }
+          }
+        }
+      },
+      "JobCreationFailed": {
+        "description": "Storage, persistence, or queue acceptance failed. The API attempts compensation internally.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "JOB_CREATION_FAILED",
+              "message": "The job could not be accepted for processing."
+            }
+          }
+        }
+      },
+      "JobNotFound": {
+        "description": "The job ID is malformed or nonexistent, credentials are invalid for that job, or an authenticated user does not own it. These cases intentionally share one concealed response.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "code": "JOB_NOT_FOUND",
+              "message": "Job not found"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SignupRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "email", "password", "confirmPassword"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100,
+            "description": "Trimmed; internal whitespace is collapsed."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Trimmed and normalized to lowercase."
+          },
+          "password": {
+            "$ref": "#/components/schemas/StrongPassword"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "Must exactly match `password`."
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 72
+          }
+        }
+      },
+      "VerificationTokenRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["token"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token from the verification email."
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["token", "password", "confirmPassword"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token from the password-reset email."
+          },
+          "password": {
+            "$ref": "#/components/schemas/StrongPassword"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "Must exactly match `password`."
+          }
+        }
+      },
+      "UpdatePasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["curPassword", "newPassword", "confirmPassword"],
+        "properties": {
+          "curPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 72
+          },
+          "newPassword": {
+            "$ref": "#/components/schemas/StrongPassword"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "Must exactly match `newPassword`."
+          }
+        }
+      },
+      "StrongPassword": {
+        "type": "string",
+        "minLength": 8,
+        "maxLength": 72,
+        "description": "Must include lowercase, uppercase, numeric, and symbol characters.",
+        "format": "password"
+      },
+      "CreateJobMultipartRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["image", "operation", "options"],
+        "properties": {
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "description": "Exactly one JPEG, PNG, or WebP image. Maximum size: 5 MB."
+          },
+          "operation": {
+            "type": "string",
+            "enum": ["resize", "compress", "convert"]
+          },
+          "options": {
+            "type": "string",
+            "description": "JSON-encoded text matching the selected operation. Resize: `{\"width\":800,\"height\":600}`; compress: `{\"quality\":70}`; convert: `{\"format\":\"webp\"}`.",
+            "example": "{\"width\":800,\"height\":600}"
+          }
+        }
+      },
+      "JobOptions": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ResizeOptions"
+          },
+          {
+            "$ref": "#/components/schemas/CompressOptions"
+          },
+          {
+            "$ref": "#/components/schemas/ConvertOptions"
+          }
+        ]
+      },
+      "ResizeOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["width", "height"],
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          }
+        }
+      },
+      "CompressOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["quality"],
+        "properties": {
+          "quality": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "ConvertOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["format"],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": ["jpeg", "png", "webp"]
+          }
+        }
+      },
+      "AcceptedJob": {
+        "type": "object",
+        "required": ["id", "operation", "options", "status", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": ["resize", "compress", "convert"]
+          },
+          "options": {
+            "$ref": "#/components/schemas/JobOptions"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SafeJob": {
+        "type": "object",
+        "required": ["id", "operation", "options", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": ["resize", "compress", "convert"]
+          },
+          "options": {
+            "$ref": "#/components/schemas/JobOptions"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": "object",
+            "required": ["downloadUrl"],
+            "description": "Present only when `status` is `completed`.",
+            "properties": {
+              "downloadUrl": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "required": ["message"],
+            "description": "Present only when `status` is `failed`.",
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SuccessMessage": {
+        "type": "object",
+        "required": ["status", "message"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginSuccessResponse": {
+        "type": "object",
+        "required": ["status", "data"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["accessToken", "tokenType", "expiresIn"],
+            "properties": {
+              "accessToken": {
+                "type": "string"
+              },
+              "tokenType": {
+                "type": "string",
+                "enum": ["Bearer"]
+              },
+              "expiresIn": {
+                "type": "integer",
+                "description": "Access-token lifetime in seconds."
+              }
+            }
+          }
+        }
+      },
+      "CreateJobSuccessResponse": {
+        "type": "object",
+        "required": ["status", "data"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["job"],
+            "properties": {
+              "job": {
+                "$ref": "#/components/schemas/AcceptedJob"
+              },
+              "guestAccessToken": {
+                "type": "string",
+                "description": "Returned exactly once for guest-created jobs; omitted for authenticated jobs."
+              }
+            }
+          }
+        }
+      },
+      "GetJobSuccessResponse": {
+        "type": "object",
+        "required": ["status", "data"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["job"],
+            "properties": {
+              "job": {
+                "$ref": "#/components/schemas/SafeJob"
+              }
+            }
+          }
+        }
+      },
+      "ProcessingHistoryResponse": {
+        "type": "object",
+        "required": ["status", "data"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["jobs", "pagination"],
+            "properties": {
+              "jobs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SafeJob"
+                }
+              },
+              "pagination": {
+                "type": "object",
+                "required": ["page", "limit", "total", "totalPages"],
+                "properties": {
+                  "page": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "totalPages": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["status", "code", "message"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["error"]
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorResponse"
+          },
+          {
+            "type": "object",
+            "required": ["details"],
+            "properties": {
+              "details": {
+                "type": "object",
+                "required": ["fields"],
+                "properties": {
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["source", "field", "message"],
+                      "properties": {
+                        "source": {
+                          "type": "string"
+                        },
+                        "field": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

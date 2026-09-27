@@ -3,12 +3,31 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import swaggerUiDist from 'swagger-ui-dist';
 import errorHandler from './middleware/handle-errors.js';
 import ApiError from './errors/api-error.js';
 import requestLogger from './middleware/log-request.js';
 import corsOptions from './config/cors.js';
 import authRouter from './routes/auth-routes.js'
 import imageProcessingjobRouter from './routes/image-processing-job-routes.js';
+
+// ─── Documentation Constants ────────────────────────────────────────────────────
+
+const appDirectoryName = path.dirname(fileURLToPath(import.meta.url));
+
+const openApiDocumentPath = path.join(
+  appDirectoryName,
+  'docs',
+  'openapi.json'
+);
+
+const swaggerInitializerPath = path.join(
+  appDirectoryName,
+  'docs',
+  'swagger-ui-initializer.js'
+);
 
 // ─── Create Express App ─────────────────────────────────────────────────────────
 
@@ -29,7 +48,23 @@ app.use(helmet());
 // parses the JSON bodies.
 app.use(express.json({ limit: '10kb' }));
 
-// ─── ROUTES ─────────────────────────────────────────────────────────────────────
+// ─── Documentation Routes ───────────────────────────────────────────────────────
+
+app.get('/api/v1/openapi.json', (_req, res) => {
+  return res.sendFile(openApiDocumentPath);
+});
+
+app.get('/api/v1/docs/swagger-initializer.js', (_req, res) => {
+  res.type('application/javascript');
+  return res.sendFile(swaggerInitializerPath);
+});
+
+app.use(
+  '/api/v1/docs',
+  express.static(swaggerUiDist.getAbsoluteFSPath())
+);
+
+// ─── APP Routes ─────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
