@@ -10,6 +10,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { UpdatePasswordPage } from './pages/UpdatePasswordPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { HistoryPage } from './pages/HistoryPage';
 
 export default function App() {
   return <><div className="pixel-field" aria-hidden="true" /><Header /><Routes>
@@ -21,6 +22,7 @@ export default function App() {
     <Route path="/verify-email" element={<EmailVerificationPage />} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/update-password" element={<RequireAuth><UpdatePasswordPage /></RequireAuth>} />
+    <Route path="/history" element={<RequireAuth><HistoryPage /></RequireAuth>} />
     <Route path="*" element={<NotFoundPage />} />
   </Routes></>;
 }

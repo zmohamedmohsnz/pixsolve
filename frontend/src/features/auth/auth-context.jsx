@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const STORAGE_KEY = 'pixsolve.auth';
 const AuthContext = createContext(null);
@@ -17,31 +17,35 @@ const readSession = () => {
 
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(readSession);
+  const [authExpired, setAuthExpired] = useState(false);
 
-  const clearSession = () => {
+  const clearSession = useCallback(({ expired = false } = {}) => {
     sessionStorage.removeItem(STORAGE_KEY);
     setSession(null);
-  };
+    setAuthExpired(expired);
+  }, []);
 
-  const establishSession = ({ accessToken, expiresIn }) => {
+  const establishSession = useCallback(({ accessToken, expiresIn }) => {
     const nextSession = { accessToken, expiresAt: Date.now() + (expiresIn * 1000) };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
     setSession(nextSession);
-  };
+    setAuthExpired(false);
+  }, []);
 
   useEffect(() => {
     if (!session) return undefined;
     const delay = Math.max(0, session.expiresAt - Date.now());
-    const timeout = window.setTimeout(clearSession, delay);
+    const timeout = window.setTimeout(() => clearSession({ expired: true }), delay);
     return () => window.clearTimeout(timeout);
-  }, [session]);
+  }, [session, clearSession]);
 
   const value = useMemo(() => ({
     session,
     isAuthenticated: Boolean(session),
+    authExpired,
     establishSession,
     clearSession
-  }), [session]);
+  }), [session, authExpired, establishSession, clearSession]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

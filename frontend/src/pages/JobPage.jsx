@@ -1,8 +1,10 @@
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { StatusBadge } from '../components/StatusBadge';
 import { getGuestJob as getStoredGuestJob } from '../features/jobs/guest-job-storage';
 import { useJobPolling } from '../features/jobs/use-job-polling';
+import { useAuth } from '../features/auth/auth-context';
 
 const jobDescription = job => {
   if (job.operation === 'resize') return `${job.options.width} × ${job.options.height} px`;
@@ -13,19 +15,29 @@ const jobDescription = job => {
 export const JobPage = () => {
   const { jobId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { clearSession, session } = useAuth();
   const access = getStoredGuestJob();
   const hasAccess = access?.id === jobId;
+  const token = !hasAccess ? session?.accessToken : null;
+  const accountAccess = !hasAccess && Boolean(token);
+  const handleAuthenticationLost = useCallback(() => {
+    clearSession({ expired: true });
+    navigate('/login', { replace: true, state: { from: { pathname: `/jobs/${jobId}` } } });
+  }, [clearSession, jobId, navigate]);
   const { job, error, networkNotice } = useJobPolling({
-    id: hasAccess ? jobId : null,
+    id: hasAccess || accountAccess ? jobId : null,
     credential: hasAccess ? access.credential : null,
-    initialJob: location.state?.job
+    token,
+    initialJob: location.state?.accessMode === (hasAccess ? 'guest' : 'account') ? location.state?.job : null,
+    onAuthenticationLost: handleAuthenticationLost
   });
 
-  if (!hasAccess) return <main className="narrow-page"><section className="job-card panel pixel-corners"><h1>This job is not available here</h1><Alert>Its guest credential is only kept in the browser session that created it.</Alert><Link className="process-button pixel-corners action-link" to="/">Process another image</Link></section></main>;
+  if (!hasAccess && !accountAccess) return <main className="narrow-page"><section className="job-card panel pixel-corners"><h1>This job is not available here</h1><Alert>Sign in to view an account job, or use the browser session that created this guest job.</Alert><Link className="process-button pixel-corners action-link" to="/login">Sign in</Link><Link className="secondary-link" to="/">Process another image</Link></section></main>;
   if (error) return <main className="narrow-page"><section className="job-card panel pixel-corners"><h1>We couldn’t retrieve this job</h1><Alert>{error.message}</Alert><Link className="secondary-link" to="/">Process another image</Link></section></main>;
 
   return <main className="narrow-page"><section className="job-card panel pixel-corners">
-    <p className="eyebrow">Guest image-processing job</p>
+    <p className="eyebrow">{hasAccess ? 'Guest image-processing job' : 'Account image-processing job'}</p>
     <div className="job-heading"><div><h1>{job ? `${job.operation[0].toUpperCase() + job.operation.slice(1)} image` : 'Loading job…'}</h1><p>{job && jobDescription(job)}</p></div>{job && <StatusBadge status={job.status} />}</div>
     {networkNotice && <Alert tone="info" role="status">{networkNotice}</Alert>}
     {!job && <p className="loading-copy">Checking your job status…</p>}

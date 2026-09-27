@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { OperationSelector } from '../components/OperationSelector';
 import { UploadDropzone } from '../components/UploadDropzone';
-import { createGuestJob } from '../features/jobs/jobs-api';
+import { createAccountJob, createGuestJob } from '../features/jobs/jobs-api';
 import { saveGuestJob } from '../features/jobs/guest-job-storage';
+import { useAuth } from '../features/auth/auth-context';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const validMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -20,6 +21,9 @@ const apiErrorMessage = error => {
 
 export const HomePage = () => {
   const navigate = useNavigate();
+  const { authExpired, clearSession, session } = useAuth();
+  const sessionTokenRef = useRef(session?.accessToken);
+  sessionTokenRef.current = session?.accessToken;
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [dimensions, setDimensions] = useState(null);
@@ -76,16 +80,33 @@ export const HomePage = () => {
   const submit = async event => {
     event.preventDefault();
     setApiError(null);
+    if (authExpired) {
+      navigate('/login', { state: { from: { pathname: '/' } } });
+      return;
+    }
     if (!file) { setFieldError('Choose an image before processing.'); return; }
     let payload;
     try { payload = optionPayload(); setFieldError(''); } catch (error) { setFieldError(error.message); return; }
 
     setIsCreating(true);
     try {
-      const data = await createGuestJob({ file, operation, options: payload });
-      saveGuestJob({ id: data.job.id, credential: data.guestAccessToken });
-      navigate(`/jobs/${data.job.id}`, { state: { job: data.job } });
+      const token = session?.accessToken;
+      const data = token
+        ? await createAccountJob({ file, operation, options: payload, token })
+        : await createGuestJob({ file, operation, options: payload });
+      if (token && sessionTokenRef.current !== token) return;
+      if (token) {
+        navigate(`/jobs/${data.job.id}`, { state: { job: data.job, accessMode: 'account' } });
+      } else {
+        saveGuestJob({ id: data.job.id, credential: data.guestAccessToken });
+        navigate(`/jobs/${data.job.id}`, { state: { job: data.job, accessMode: 'guest' } });
+      }
     } catch (error) {
+      if (sessionTokenRef.current && error.status === 401) {
+        clearSession({ expired: true });
+        navigate('/login', { state: { from: { pathname: '/' } } });
+        return;
+      }
       setApiError(error);
     } finally {
       setIsCreating(false);
@@ -105,6 +126,7 @@ export const HomePage = () => {
   return (
     <main>
       <section className="hero"><h1>Process your <span>image</span></h1><p>Resize, compress, or convert your images with ease.<br />Fast. Simple. Free to use.</p></section>
+      {authExpired && <Alert><Link className="inline-link" to="/login">Your session has expired. Sign in to continue processing with your account.</Link></Alert>}
       <form className="workspace" onSubmit={submit} noValidate>
         <div className="left-column">
           {apiError && <Alert>{apiErrorMessage(apiError)}</Alert>}
