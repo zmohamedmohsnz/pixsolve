@@ -1,12 +1,81 @@
 // ─── Import Modules ─────────────────────────────────────────────────────────────
 
+import mongoose from 'mongoose';
 import app from './app.js';
 import config from './config/env.js';
 import connectToDB from './config/database.js';
 import logger from './config/logger.js';
+import { shutdownImageProcessingQueue } from './queues/image-processing-queue.js';
 
 let server;
 let isShuttingDown = false;
+
+// ─── Shutdown flow ──────────────────────────────────────────────────────────────
+
+const shutdown = async (reason, requestedExitCode = 0) => {
+  if (isShuttingDown) return;
+
+  isShuttingDown = true;
+
+  logger.info(
+    { event: 'apiShutdownStarted', reason },
+    'API shutdown started'
+  );
+
+  const forceExitTimer = setTimeout(() => {
+    logger.fatal(
+      { event: 'apiShutdownTimedOut', reason },
+      'API shutdown timed out'
+    );
+
+    process.exit(1);
+  }, 10_000).unref();
+
+  try {
+    if (server?.listening) {
+      await new Promise((resolve, reject) => {
+        server.close(error => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    }
+
+    await shutdownImageProcessingQueue();
+    await mongoose.disconnect();
+
+    logger.info(
+      { event: 'apiShutdownSucceeded', reason },
+      'API shutdown succeeded'
+    );
+
+    process.exit(requestedExitCode);
+  } catch (error) {
+    logger.error(
+      { event: 'apiShutdownFailed', reason, error },
+      'API shutdown failed'
+    );
+
+    process.exit(1);
+  } finally {
+    clearTimeout(forceExitTimer);
+  }
+};
+
+
+// ─── Handle signals ─────────────────────────────────────────────────────────────
+
+process.once('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+
+process.once('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});
 
 // ─── Handle uncaught exceptions ─────────────────────────────────────────────────
 
@@ -20,7 +89,7 @@ process.on('uncaughtException', (err) => {
     'Uncaught Exception Occurred'
   );
 
-  process.exit(1);
+  void shutdown('uncaughtException', 1);
 });
 
 // ─── Handle Unhandled Promise Rejection ─────────────────────────────────────────
@@ -47,20 +116,7 @@ process.on('unhandledRejection', (reason) => {
     'Unhandled promise rejection occurred'
   );
 
-  // stop process immediately if server is not listening
-  if (!server?.listening) {
-    return process.exit(1);
-  }
-
-  // if server is listening, stop accepting new connections
-  // and wait for existing connections to finish before terminating.
-  server.close(() => { process.exit(1); });
-
-  // if the exist connections lasting longer 
-  // than 10 seconds, terminate the process.
-  setTimeout(() => {
-    process.exit(1);
-  }, 10000).unref();
+  void shutdown('unhandledRejection', 1);
 });
 
 // ─── Connect Database & Start a Server ──────────────────────────────────────────

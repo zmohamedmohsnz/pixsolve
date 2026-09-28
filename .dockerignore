@@ -1,0 +1,30 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+logs/
+*.log
+uploads/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Development and repository metadata
+.git/
+.github/
+.vscode/
+.codex-run/
+.DS_Store
+
+# Test, planning, and non-backend application material
+test/
+test-support/
+frontend/
+docs/
+thinking.md
+future-things.md
+AGENTS.md
+scope-v1.md
+compose.yaml
