@@ -3,13 +3,28 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 const STORAGE_KEY = 'pixsolve.auth';
 const AuthContext = createContext(null);
 
+const parseSession = value => {
+  const session = JSON.parse(value);
+  return session?.accessToken && Number.isFinite(session.expiresAt) && session.expiresAt > Date.now() ? session : null;
+};
+
 const readSession = () => {
   try {
-    const session = JSON.parse(sessionStorage.getItem(STORAGE_KEY));
-    if (session?.accessToken && Number.isFinite(session.expiresAt) && session.expiresAt > Date.now()) return session;
+    const storedSession = parseSession(localStorage.getItem(STORAGE_KEY));
+    if (storedSession) return storedSession;
+
+    const legacySession = parseSession(sessionStorage.getItem(STORAGE_KEY));
+    if (legacySession) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(legacySession));
+      sessionStorage.removeItem(STORAGE_KEY);
+      return legacySession;
+    }
+
+    localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);
     return null;
   } catch {
+    localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);
     return null;
   }
@@ -20,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   const [authExpired, setAuthExpired] = useState(false);
 
   const clearSession = useCallback(({ expired = false } = {}) => {
+    localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);
     setSession(null);
     setAuthExpired(expired);
@@ -27,7 +43,7 @@ export const AuthProvider = ({ children }) => {
 
   const establishSession = useCallback(({ accessToken, expiresIn }) => {
     const nextSession = { accessToken, expiresAt: Date.now() + (expiresIn * 1000) };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
     setSession(nextSession);
     setAuthExpired(false);
   }, []);
@@ -38,6 +54,16 @@ export const AuthProvider = ({ children }) => {
     const timeout = window.setTimeout(() => clearSession({ expired: true }), delay);
     return () => window.clearTimeout(timeout);
   }, [session, clearSession]);
+
+  useEffect(() => {
+    const syncSession = event => {
+      if (event.key !== STORAGE_KEY || event.storageArea !== localStorage) return;
+      setSession(readSession());
+      setAuthExpired(false);
+    };
+    window.addEventListener('storage', syncSession);
+    return () => window.removeEventListener('storage', syncSession);
+  }, []);
 
   const value = useMemo(() => ({
     session,

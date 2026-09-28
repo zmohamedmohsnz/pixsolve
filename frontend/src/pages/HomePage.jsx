@@ -9,9 +9,11 @@ import { useAuth } from '../features/auth/auth-context';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const validMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const outputFormats = ['jpeg', 'png', 'webp'];
+const formatForMimeType = { 'image/jpeg': 'jpeg', 'image/png': 'png', 'image/webp': 'webp' };
 
-const fileFormat = file => ({ 'image/jpeg': 'JPEG', 'image/png': 'PNG', 'image/webp': 'WebP' }[file?.type] || 'IMAGE');
-const fileSize = bytes => `${(bytes / (1024 * 1024)).toFixed(bytes < 1024 * 1024 ? 1 : 2)} MiB`;
+const fileFormat = file => formatForMimeType[file?.type]?.toUpperCase() || 'IMAGE';
+const fileSize = bytes => `${(bytes / 1_000_000).toFixed(bytes < 1_000_000 ? 1 : 2)} MB`;
 const apiErrorMessage = error => {
   const fieldMessages = error?.details?.fields
     ?.map(field => field.message)
@@ -29,15 +31,26 @@ export const HomePage = () => {
   const [dimensions, setDimensions] = useState(null);
   const [operation, setOperation] = useState('resize');
   const [options, setOptions] = useState({ width: '', height: '', quality: '70', format: 'webp' });
+  const [keepAspectRatio, setKeepAspectRatio] = useState(true);
+  const [uploadError, setUploadError] = useState('');
   const [fieldError, setFieldError] = useState('');
   const [apiError, setApiError] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    if (!file) { setPreviewUrl(null); setDimensions(null); return undefined; }
+    if (!file) {
+      setPreviewUrl(null);
+      setDimensions(null);
+      setOptions(current => ({ ...current, width: '', height: '' }));
+      return undefined;
+    }
     const url = URL.createObjectURL(file);
     const image = new Image();
-    image.onload = () => setDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onload = () => {
+      const nextDimensions = { width: image.naturalWidth, height: image.naturalHeight };
+      setDimensions(nextDimensions);
+      setOptions(current => ({ ...current, width: String(nextDimensions.width), height: String(nextDimensions.height) }));
+    };
     image.src = url;
     setPreviewUrl(url);
     return () => { image.onload = null; URL.revokeObjectURL(url); };
@@ -48,15 +61,19 @@ export const HomePage = () => {
     if (!nextFile) return;
     if (!validMimeTypes.has(nextFile.type)) {
       setFile(null);
-      setFieldError('Choose a JPEG, PNG, or WebP image.');
+      setUploadError('Choose a JPEG, PNG, or WebP image.');
       return;
     }
     if (nextFile.size > MAX_FILE_SIZE) {
       setFile(null);
-      setFieldError('Choose an image no larger than 5 MiB.');
+      setUploadError('Choose an image no larger than 5 MB.');
       return;
     }
+    setUploadError('');
     setFieldError('');
+    setOptions(current => current.format === formatForMimeType[nextFile.type]
+      ? { ...current, format: outputFormats.find(format => format !== formatForMimeType(nextFile.type)) }
+      : current);
     setFile(nextFile);
   };
 
@@ -84,7 +101,7 @@ export const HomePage = () => {
       navigate('/login', { state: { from: { pathname: '/' } } });
       return;
     }
-    if (!file) { setFieldError('Choose an image before processing.'); return; }
+    if (!file) { setUploadError('Choose an image before processing.'); return; }
     let payload;
     try { payload = optionPayload(); setFieldError(''); } catch (error) { setFieldError(error.message); return; }
 
@@ -114,6 +131,18 @@ export const HomePage = () => {
   };
 
   const updateOption = (key, value) => setOptions(current => ({ ...current, [key]: value }));
+  const updateResizeOption = (key, value) => setOptions(current => {
+    const nextOptions = { ...current, [key]: value };
+    const nextValue = Number(value);
+    if (!keepAspectRatio || !dimensions || !Number.isFinite(nextValue) || nextValue < 1) return nextOptions;
+
+    if (key === 'width') {
+      nextOptions.height = String(Math.max(1, Math.round(nextValue * dimensions.height / dimensions.width)));
+    } else {
+      nextOptions.width = String(Math.max(1, Math.round(nextValue * dimensions.width / dimensions.height)));
+    }
+    return nextOptions;
+  });
   const originalWidth = dimensions ? `${dimensions.width} px` : 'Choose an image';
   const originalHeight = dimensions ? `${dimensions.height} px` : 'Choose an image';
   const outputRows = [
@@ -122,6 +151,8 @@ export const HomePage = () => {
     ['⇆', 'Height', operation === 'resize' && options.height ? `${options.height} px` : originalHeight],
     ['↕', 'Output format', operation === 'convert' ? options.format.toUpperCase() : `Same as original${file ? ` (${fileFormat(file)})` : ''}`]
   ];
+  const hasPreview = Boolean(file && previewUrl);
+  const availableOutputFormats = outputFormats.filter(format => format !== formatForMimeType[file?.type]);
 
   return (
     <main>
@@ -130,23 +161,25 @@ export const HomePage = () => {
       <form className="workspace" onSubmit={submit} noValidate>
         <div className="left-column">
           {apiError && <Alert>{apiErrorMessage(apiError)}</Alert>}
-          <UploadDropzone file={file} onFile={selectFile} error={fieldError && !file ? fieldError : ''} />
+          <UploadDropzone file={file} onFile={selectFile} error={uploadError} />
           <OperationSelector value={operation} onChange={setOperation} />
           <section className="options-panel panel pixel-corners">
             <h2>{operation[0].toUpperCase() + operation.slice(1)} options</h2>
             {operation === 'resize' && <div className="option-controls two-columns">
-              <label>Width (px)<input value={options.width} onChange={e => updateOption('width', e.target.value)} type="number" min="1" max="4096" inputMode="numeric" /></label>
-              <label>Height (px)<input value={options.height} onChange={e => updateOption('height', e.target.value)} type="number" min="1" max="4096" inputMode="numeric" /></label>
+              <label>Width (px)<input value={options.width} onChange={e => updateResizeOption('width', e.target.value)} type="number" min="1" max="4096" step="1" inputMode="numeric" /></label>
+              <label>Height (px)<input value={options.height} onChange={e => updateResizeOption('height', e.target.value)} type="number" min="1" max="4096" step="1" inputMode="numeric" /></label>
+              <label className="aspect-ratio-toggle"><input type="checkbox" checked={keepAspectRatio} onChange={event => setKeepAspectRatio(event.target.checked)} />Keep aspect ratio</label>
             </div>}
             {operation === 'compress' && <div className="option-controls"><label>Quality (1–100)<input value={options.quality} onChange={e => updateOption('quality', e.target.value)} type="number" min="1" max="100" inputMode="numeric" /></label></div>}
-            {operation === 'convert' && <fieldset className="format-picker"><legend>Output format</legend><div role="radiogroup" aria-label="Output format">{['jpeg', 'png', 'webp'].map(format => <button className={options.format === format ? 'selected' : ''} type="button" role="radio" aria-checked={options.format === format} key={format} onClick={() => updateOption('format', format)}>{format.toUpperCase()}</button>)}</div></fieldset>}
-            {fieldError && file && <p className="field-error" role="alert">{fieldError}</p>}
-            <button className="process-button pixel-corners" type="submit" disabled={isCreating}>{isCreating ? 'Submitting job…' : <>Process image <span>→</span></>}</button>
+            {operation === 'convert' && <fieldset className="format-picker"><legend>Output format</legend><div role="radiogroup" aria-label="Output format">{availableOutputFormats.map(format => <button className={options.format === format ? 'selected' : ''} type="button" role="radio" aria-checked={options.format === format} key={format} onClick={() => updateOption('format', format)}>{format.toUpperCase()}</button>)}</div></fieldset>}
+            {fieldError && <p className="field-error" role="alert">{fieldError}</p>}
+            <button className="process-button pixel-corners" type="submit" disabled={isCreating}>{isCreating ? <>Submitting image<span className="loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></> : <>Process image <span>→</span></>}</button>
+            {isCreating && <p className="submission-note" role="status">Please wait a moment while we prepare your image.</p>}
           </section>
         </div>
         <aside className="preview-column panel pixel-corners">
-          <section className="preview-section"><div className="section-title"><h2>Image preview</h2>{file && <button className="clear-button" type="button" onClick={() => { setFile(null); setFieldError(''); }}>Clear</button>}</div>
-            <div className={`image-frame pixel-corners ${!previewUrl ? 'empty-preview' : ''}`}>{previewUrl ? <img src={previewUrl} alt={`Preview of ${file.name}`} /> : <span>Choose an image to preview it here.</span>}</div>
+          <section className="preview-section"><div className="section-title"><h2>Image preview</h2>{file && <button className="clear-button" type="button" onClick={() => { setFile(null); setUploadError(''); setFieldError(''); }}>Clear</button>}</div>
+            <div className={`image-frame pixel-corners ${!hasPreview ? 'empty-preview' : ''}`}>{hasPreview ? <img src={previewUrl} alt={`Preview of ${file.name}`} /> : <span>Choose an image to preview it here.</span>}</div>
             {file && <div className="file-details"><div><strong>{file.name}</strong><small>{fileSize(file.size)} <i /> {dimensions ? `${dimensions.width} × ${dimensions.height}` : 'Reading dimensions…'}</small></div><span className="format-badge">{fileFormat(file)}</span></div>}
           </section>
           <section className="output-card pixel-corners"><div className="output-heading"><h2>Output information</h2></div><dl>{outputRows.map(([icon, label, value]) => <div key={label}><dt><span aria-hidden="true">{icon}</span>{label}</dt><dd>{value}</dd></div>)}</dl></section>

@@ -28,8 +28,9 @@ export const SignupPage = () => {
       await signup({ ...values, name: values.name.trim(), email: values.email.trim() });
       setIsComplete(true);
     } catch (error) {
-      setErrors(apiFieldErrors(error));
-      setApiError(error.message);
+      const emailAlreadyExists = error.code === 'DUPLICATE_VALUE' && error.details?.fields?.includes('email');
+      setErrors(emailAlreadyExists ? { email: 'Account with this email already exists.' } : apiFieldErrors(error));
+      setApiError(emailAlreadyExists ? '' : error.message);
     } finally {
       setIsSubmitting(false);
     }

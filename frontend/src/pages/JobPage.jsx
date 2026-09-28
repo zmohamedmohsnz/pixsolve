@@ -12,6 +12,19 @@ const jobDescription = job => {
   return `Convert to ${job.options.format.toUpperCase()}`;
 };
 
+const downloadUrl = deliveryUrl => {
+  try {
+    const url = new URL(deliveryUrl);
+    const pathParts = url.pathname.split('/');
+    const uploadIndex = pathParts.indexOf('upload');
+    if (uploadIndex !== -1 && pathParts[uploadIndex + 1] !== 'fl_attachment') pathParts.splice(uploadIndex + 1, 0, 'fl_attachment');
+    url.pathname = pathParts.join('/');
+    return url.toString();
+  } catch {
+    return deliveryUrl;
+  }
+};
+
 export const JobPage = () => {
   const { jobId } = useParams();
   const location = useLocation();
@@ -43,7 +56,7 @@ export const JobPage = () => {
     {!job && <p className="loading-copy">Checking your job status…</p>}
     {job?.status === 'pending' && <div className="job-state"><span className="spinner" aria-hidden="true" />Your image is waiting to be processed.</div>}
     {job?.status === 'processing' && <div className="job-state"><span className="spinner" aria-hidden="true" />Your image is being processed.</div>}
-    {job?.status === 'completed' && <div className="job-state success-state"><strong>Your image is ready.</strong><a className="process-button pixel-corners action-link" href={job.result.downloadUrl}>Download result <span>↓</span></a></div>}
+    {job?.status === 'completed' && <div className="job-state success-state"><strong>Your image is ready.</strong><a className="process-button pixel-corners action-link" href={downloadUrl(job.result.downloadUrl)}>Download result <span>↓</span></a></div>}
     {job?.status === 'failed' && <div className="job-state failed-state"><Alert>{job.error?.message || 'Image processing failed.'}</Alert><Link className="secondary-link" to="/">Try another image</Link></div>}
     <p className="job-note">Status updates automatically while this page is open.</p>
   </section></main>;

@@ -8,12 +8,16 @@ export const UploadDropzone = ({ file, onFile, error }) => {
     if (candidate) onFile(candidate);
   };
 
+  const resetDragState = event => {
+    if (!event.currentTarget.contains(event.relatedTarget)) setIsDragging(false);
+  };
+
   return (
     <section
       className={`upload-panel panel pixel-corners ${isDragging ? 'is-dragging' : ''}`}
       onDragEnter={event => { event.preventDefault(); setIsDragging(true); }}
       onDragOver={event => event.preventDefault()}
-      onDragLeave={event => { if (event.currentTarget === event.target) setIsDragging(false); }}
+      onDragLeave={resetDragState}
       onDrop={event => { event.preventDefault(); setIsDragging(false); selectFile(event.dataTransfer.files[0]); }}
     >
       <div className="grid-overlay" aria-hidden="true" />
@@ -30,11 +34,14 @@ export const UploadDropzone = ({ file, onFile, error }) => {
         id="image"
         type="file"
         accept="image/png,image/jpeg,image/webp"
-        onChange={event => selectFile(event.target.files[0])}
+        onChange={event => {
+          selectFile(event.target.files[0]);
+          event.target.value = '';
+        }}
         hidden
       />
       <div className="file-types">PNG <i /> JPEG <i /> WebP</div>
-      <small>Max file size: 5 MiB</small>
+      <small>Max file size: 5 MB</small>
       {error && <p className="field-error" role="alert">{error}</p>}
     </section>
   );
