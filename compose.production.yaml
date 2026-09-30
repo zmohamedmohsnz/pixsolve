@@ -1,0 +1,83 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - proxy
+
+  api:
+    build:
+      context: .
+    command: ["node", "src/server.js"]
+    restart: unless-stopped
+    env_file:
+      - /opt/pixsolve/secrets/app.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3000/health')
+          .then(response => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - proxy
+      - backend
+
+  worker:
+    build:
+      context: .
+    command: ["node", "src/bin/image-processing-worker.js"]
+    restart: unless-stopped
+    env_file:
+      - /opt/pixsolve/secrets/app.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+
+  redis:
+    image: redis:8.2.9-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+networks:
+  proxy:
+  backend:
+
+volumes:
+  caddy-data:
+  caddy-config:
+  redis-data:

@@ -1,0 +1,8 @@
+api.pixsolve.org {
+	log {
+		output stdout
+		format json
+	}
+
+	reverse_proxy api:3000
+}
